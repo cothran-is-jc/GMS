@@ -7,7 +7,6 @@
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>
         [x-cloak] { display: none !important; }
-        .prose { max-width: 65ch; }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -30,7 +29,7 @@
     document.addEventListener('alpine:init', () => {
         Alpine.store('auth', {
             currentUser: null,
-            userData: null, // Start as null
+            userData: null,
             isAuthReady: false,
             async init() {
                 try {
@@ -40,7 +39,7 @@
                 } catch (error) {
                     console.error("Auth Init Error:", error);
                     this.currentUser = null;
-                    this.userData = null; // Ensure it's null on error
+                    this.userData = null;
                 } finally {
                     this.isAuthReady = true;
                 }
@@ -54,7 +53,6 @@
         currentPage: 'dashboard',
         pageParams: {},
         init() {
-            // Initialize the auth store
             this.$store.auth.init();
         },
         navigateTo(page, params = {}) {
@@ -70,77 +68,47 @@
     </div>
 
     <div x-show="$store.auth.isAuthReady" x-cloak>
+
         <template x-if="!$store.auth.currentUser">
-            <main>
-                <div class="min-h-screen flex items-center justify-center bg-gray-100 py-12 px-4">
-                     <div class="max-w-md w-full space-y-8 bg-white p-10 rounded-xl shadow-2xl text-center">
-                         <h2 class="mt-6 text-3xl font-extrabold text-gray-900">Welcome to GrantMaster</h2>
-                         <p class="text-red-500 text-sm bg-red-100 p-3 rounded-md">
-                             Authentication Required. Please log in or grant permissions to use the application.
-                         </p>
-                     </div>
-                 </div>
+            <main class="min-h-screen flex items-center justify-center bg-gray-100 py-12 px-4">
+                <div class="max-w-md w-full space-y-8 bg-white p-10 rounded-xl shadow-2xl text-center">
+                    <h2 class="mt-6 text-3xl font-extrabold text-gray-900">Welcome to GrantMaster</h2>
+                    <p class="text-red-500 text-sm bg-red-100 p-3 rounded-md">
+                        Authentication Required. Please log in or grant permissions to use the application.
+                    </p>
+                </div>
             </main>
         </template>
 
         <template x-if="$store.auth.currentUser">
-            <nav x-data="{ dropdownOpen: false }" class="bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-4 shadow-lg sticky top-0 z-50">
-                <div class="container mx-auto flex justify-between items-center">
-                    <div class="flex items-center space-x-2 cursor-pointer" @click="navigateTo('dashboard')">
-                        <h1 class="text-2xl font-bold tracking-tight">GrantMaster</h1>
-                    </div>
-                    <div x-show="$store.auth.userData" class="flex items-center space-x-6">
-                        <template x-if="$store.auth.userData.role === 'admin'">
-                            <button @click="navigateTo('admin')" class="hover:text-blue-200">Admin Panel</button>
-                        </template>
-                        <button @click="navigateTo('programs')" class="hover:text-blue-200">Grant Programs</button>
-                    </div>
-                </div>
-            </nav>
-
-            <main>
-                <template x-if="currentPage === 'dashboard'">
-                    <div class="container mx-auto p-8">
-                         <template x-if="$store.auth.userData">
-                            <h2 x-text="`Good ${(new Date().getHours() < 12) ? 'Morning' : 'Afternoon'}, ${$store.auth.userData.displayName}!`" class="text-3xl font-semibold mb-6"></h2>
-                         </template>
-                    </div>
-                </template>
-
-                <template x-if="currentPage === 'programs'">
-                     <div x-data="grantProgramList()" x-init="fetchPrograms()" class="container mx-auto p-8">
-                        <div class="flex justify-between items-center mb-6">
-                           <h2 class="text-3xl font-semibold">Grant Programs</h2>
-                           <template x-if="$store.auth.userData && $store.auth.userData.role === 'admin'">
-                               <button @click="navigateTo('programForm', { programId: null })" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">Create New Program</button>
-                           </template>
+            <template x-if="$store.auth.userData">
+                <nav x-data="{ dropdownOpen: false }" class="bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-4 shadow-lg sticky top-0 z-50">
+                    <div class="container mx-auto flex justify-between items-center">
+                        <div class="cursor-pointer" @click="navigateTo('dashboard')"><h1 class="text-2xl font-bold">GrantMaster</h1></div>
+                        <div class="flex items-center space-x-6">
+                            <template x-if="$store.auth.userData.role === 'admin'">
+                                <button @click="navigateTo('admin')" class="hover:text-blue-200">Admin Panel</button>
+                            </template>
+                            <button @click="navigateTo('programs')" class="hover:text-blue-200">Grant Programs</button>
                         </div>
+                    </div>
+                </nav>
+                <main>
+                    <template x-if="currentPage === 'dashboard'">
+                        <div class="container mx-auto p-8">
+                            <h2 x-text="`Welcome, ${$store.auth.userData.displayName}!`" class="text-3xl font-semibold"></h2>
                         </div>
-                </template>
-
+                    </template>
+                     <template x-if="currentPage === 'programs'">
+                        <div x-data="{}" class="container mx-auto p-8">
+                             <h2 class="text-3xl font-semibold">Grant Programs</h2>
+                        </div>
+                    </template>
                 </main>
+            </template>
         </template>
     </div>
 </div>
-
-<script>
-    // Component functions like grantProgramList, grantProgramForm, etc.
-    // would go here.
-    function grantProgramList() {
-        return {
-            programs: [],
-            loading: true,
-            error: '',
-            fetchPrograms() {
-                this.loading = true; this.error = '';
-                runAppsScript('queryCollection', 'grantPrograms', [], [{ field: 'createdAt', direction: 'desc' }])
-                    .then(result => { if (Array.isArray(result)) { this.programs = result; } else { throw new Error("Data from server was not an array."); } })
-                    .catch(err => { this.error = `Failed to load programs: ${err.message}`; })
-                    .finally(() => { this.loading = false; });
-            }
-        };
-    }
-</script>
 
 </body>
 </html>
