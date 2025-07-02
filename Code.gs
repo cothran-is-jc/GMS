@@ -224,7 +224,7 @@ function listCollection(collectionName) {
  * Serves the HTML content.
  */
 function doGet() {
-  return HtmlService.createTemplateFromFile('index')
+  return HtmlService.createTemplateFromFile('Index')
       .evaluate()
       .setTitle('GrantMaster App')
       .setSandboxMode(HtmlService.SandboxMode.IFRAME);
