@@ -12,7 +12,6 @@
 <body class="bg-gray-100">
 
 <script>
-    // --- Apps Script Backend Interaction Helper ---
     function runAppsScript(functionName, ...args) {
         return new Promise((resolve, reject) => {
             if (typeof google === 'undefined' || typeof google.script === 'undefined') {
@@ -25,7 +24,6 @@
         });
     }
 
-    // --- Alpine.js Global Store for Authentication ---
     document.addEventListener('alpine:init', () => {
         Alpine.store('auth', {
             currentUser: null,
@@ -70,7 +68,7 @@
 
         <template x-if="!$store.auth.currentUser">
             <main class="min-h-screen flex items-center justify-center">
-                <p>Authentication Required. Please ensure you are logged into your Google account and have granted permissions.</p>
+                <p class="p-4 bg-yellow-100 text-yellow-800 rounded-md">Authentication Required. Please ensure you are logged into your Google account and have granted permissions.</p>
             </main>
         </template>
 
@@ -96,13 +94,13 @@
                      <template x-if="currentPage === 'programs'">
                         <div class="container mx-auto p-8">
                              <h2 class="text-3xl font-semibold">Grant Programs</h2>
-                             </div>
+                        </div>
                     </template>
-                    </main>
+                </main>
             </template>
              <template x-if="!$store.auth.userData">
                  <div class="min-h-screen flex items-center justify-center">
-                    <p class="text-red-500">Error: Could not load user profile data. Please contact an administrator.</p>
+                    <p class="p-4 bg-red-100 text-red-700 rounded-md">Error: Could not load user profile data. Please contact an administrator.</p>
                 </div>
             </template>
         </template>
