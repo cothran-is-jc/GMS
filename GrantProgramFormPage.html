@@ -1,0 +1,101 @@
+<div
+  x-data="grantProgramForm(pageParams)"
+  x-init="init()"
+  class="max-w-xl mx-auto bg-white p-6 rounded shadow space-y-4"
+>
+  <h2 class="text-xl font-bold" x-text="isEdit ? 'Edit Grant Program' : 'New Grant Program'"></h2>
+
+  <!-- Error -->
+  <div x-show="error" class="text-red-600" x-text="error"></div>
+
+  <!-- Form -->
+  <form @submit.prevent="save">
+    <div class="mb-4">
+      <label class="block text-sm font-medium mb-1">Title</label>
+      <input
+        type="text"
+        class="w-full border rounded px-3 py-2"
+        x-model="form.title"
+        required
+      />
+    </div>
+
+    <div class="mb-4">
+      <label class="block text-sm font-medium mb-1">Description</label>
+      <textarea
+        class="w-full border rounded px-3 py-2"
+        rows="4"
+        x-model="form.description"
+        required
+      ></textarea>
+    </div>
+
+    <!-- Submit -->
+    <div class="flex justify-between items-center">
+      <button
+        type="submit"
+        class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+        x-text="isEdit ? 'Update' : 'Create'"
+      ></button>
+
+      <button
+        type="button"
+        @click="goTo('grantPrograms')"
+        class="text-gray-600 hover:underline text-sm"
+      >
+        Cancel
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+  document.addEventListener('alpine:init', () => {
+    Alpine.data('grantProgramForm', (params) => ({
+      isEdit: !!params?.docId,
+      form: {
+        title: '',
+        description: ''
+      },
+      error: null,
+
+      init() {
+        if (this.isEdit) {
+          this.loadExisting();
+        }
+      },
+
+      loadExisting() {
+        google.script.run
+          .withSuccessHandler((doc) => {
+            this.form = doc;
+          })
+          .withFailureHandler((err) => {
+            this.error = err.message || 'Failed to load program.';
+          })
+          .getDoc('grantPrograms', params.docId);
+      },
+
+      save() {
+        this.error = null;
+
+        const method = this.isEdit ? 'updateDoc' : 'addDoc';
+        const args = this.isEdit
+          ? ['grantPrograms', this.form.id, this.form]
+          : ['grantPrograms', { ...this.form, id: this.generateId() }];
+
+        google.script.run
+          .withSuccessHandler(() => {
+            goTo('grantPrograms');
+          })
+          .withFailureHandler((err) => {
+            this.error = err.message || 'Save failed.';
+          })[method](...args);
+      },
+
+      generateId() {
+        return 'gp_' + Math.random().toString(36).substring(2, 10);
+      }
+    }));
+  });
+</script>

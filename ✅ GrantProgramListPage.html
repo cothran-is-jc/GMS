@@ -1,0 +1,51 @@
+<div x-data="grantProgramList()" x-init="loadPrograms()" class="space-y-4">
+  <h2 class="text-xl font-bold">Grant Programs</h2>
+
+  <!-- Loading -->
+  <div x-show="loading" class="text-gray-500">Loading programs...</div>
+
+  <!-- Error -->
+  <div x-show="error" class="text-red-500" x-text="error"></div>
+
+  <!-- Program List -->
+  <template x-if="programs.length">
+    <ul class="space-y-2">
+      <template x-for="program in programs" :key="program.id">
+        <li class="bg-white p-4 rounded shadow">
+          <h3 class="font-semibold text-lg" x-text="program.title"></h3>
+          <p class="text-sm text-gray-600" x-text="program.description"></p>
+        </li>
+      </template>
+    </ul>
+  </template>
+
+  <div x-show="!loading && programs.length === 0" class="text-gray-500">
+    No programs found.
+  </div>
+</div>
+
+<script>
+  document.addEventListener('alpine:init', () => {
+    Alpine.data('grantProgramList', () => ({
+      programs: [],
+      loading: true,
+      error: null,
+
+      loadPrograms() {
+        this.loading = true;
+        this.error = null;
+
+        google.script.run
+          .withSuccessHandler((res) => {
+            this.programs = res;
+            this.loading = false;
+          })
+          .withFailureHandler((err) => {
+            this.error = err.message || 'Failed to load programs.';
+            this.loading = false;
+          })
+          .queryCollection('grantPrograms');
+      }
+    }));
+  });
+</script>
