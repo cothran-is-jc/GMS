@@ -1,146 +1,199 @@
-<!-- Alpine App Logic: Must come BEFORE x-data is evaluated -->
-<script>
-  document.addEventListener('alpine:init', () => {
-    Alpine.store('auth', {
-      currentUser: null,
-      userData: null,
-      loading: true,
-      isAuthReady: false
-    });
-
-    Alpine.data('grantApp', () => ({
-      currentPage: 'dashboard',
-      pageParams: {},
-
-      init() {
-        this.fetchCurrentUser();
-      },
-
-      fetchCurrentUser() {
-        google.script.run
-          .withSuccessHandler((res) => {
-            console.log("getCurrentUser result:", res);
-            Alpine.store('auth').currentUser = res.currentUser;
-            Alpine.store('auth').userData = res.userData;
-            Alpine.store('auth').isAuthReady = true;
-            Alpine.store('auth').loading = false;
-          })
-          .withFailureHandler((err) => {
-            console.error("getCurrentUser failed", err);
-            Alpine.store('auth').loading = false;
-            Alpine.store('auth').isAuthReady = true;
-          })
-          .getCurrentUser();
-      },
-
-      goTo(page, params = {}) {
-        this.currentPage = page;
-        this.pageParams = params;
-      },
-
-      signOut() {
-        alert('Sign-out not implemented.');
-      }
-    }));
-  });
-</script>
-
-<!-- App Container -->
 <div
   x-data="grantApp()"
   x-init="init()"
   x-cloak
   class="min-h-screen flex flex-col"
 >
-  <!-- Navbar -->
   <header class="bg-white shadow">
     <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
       <h1 class="text-xl font-bold text-gray-800">GrantMaster</h1>
-
-      <template x-if="$store.auth.isAuthReady">
+      <template x-if="$store.auth.isAuthReady && $store.auth.currentUser">
         <div class="flex items-center space-x-4">
-          <template x-if="$store.auth.currentUser">
-            <div class="flex items-center space-x-2">
-              <span class="text-gray-700" x-text="$store.auth.userData.displayName"></span>
-              <div class="relative" x-data="{ open: false }">
-                <button @click="open = !open" class="text-sm text-gray-600">
-                  <i class="fa-solid fa-user-circle text-lg"></i>
-                </button>
-                <div
-                  x-show="open"
-                  @click.away="open = false"
-                  class="absolute right-0 mt-2 w-40 bg-white border rounded shadow p-2 z-10"
-                >
-                  <div class="text-sm text-gray-700 mb-2" x-text="$store.auth.userData.email"></div>
-                  <button @click="signOut()" class="text-red-500 text-sm hover:underline">Sign Out</button>
-                </div>
-              </div>
+          <span class="text-gray-700" x-text="$store.auth.userData.displayName"></span>
+          <div class="relative" x-data="{ open: false }">
+            <button @click="open = !open" class="text-sm text-gray-600">
+              <i class="fa-solid fa-user-circle text-lg"></i>
+            </button>
+            <div
+              x-show="open"
+              @click.away="open = false"
+              class="absolute right-0 mt-2 w-48 bg-white border rounded shadow p-2 z-10"
+            >
+              <div class="text-sm text-gray-700 mb-2 p-1" x-text="$store.auth.currentUser.email"></div>
+              <button @click="signOut()" class="w-full text-left text-red-500 text-sm hover:underline p-1">Sign Out</button>
             </div>
-          </template>
+          </div>
         </div>
       </template>
     </div>
   </header>
 
-  <!-- Page Content -->
   <main class="flex-1 p-4">
-    <!-- Debug Panel -->
-    <div class="text-sm bg-gray-100 p-2 rounded mb-4" x-show="$store.auth.isAuthReady">
-      <p><strong>Debug Auth State:</strong></p>
-      <p>currentUser: <pre x-text="JSON.stringify($store.auth.currentUser, null, 2)"></pre></p>
-      <p>userData: <pre x-text="JSON.stringify($store.auth.userData, null, 2)"></pre></p>
-    </div>
-
-    <!-- Loading Spinner -->
     <div x-show="$store.auth.loading" class="text-center py-10">
       <i class="fas fa-spinner fa-spin text-2xl text-gray-500"></i>
       <p class="mt-2 text-gray-600">Loading...</p>
     </div>
 
-    <!-- Not Authenticated Message -->
-    <div x-show="!$store.auth.currentUser && !$store.auth.loading">
+    <div x-show="!$store.auth.loading && !$store.auth.currentUser" class="text-center">
       <h2 class="text-xl font-semibold mb-4">Welcome to GrantMaster</h2>
       <p class="text-gray-600">You must be signed in with a Google account to access this system.</p>
     </div>
 
-    <!-- Dashboard -->
-    <div x-show="$store.auth.currentUser && currentPage === 'dashboard'">
-      <h2 class="text-2xl font-bold mb-4">Dashboard</h2>
-      <p class="text-gray-700 mb-4">
-        Welcome, <span class="font-semibold" x-text="$store.auth.userData.displayName"></span>!
-      </p>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <template x-if="$store.auth.userData.role === 'admin'">
+    <div x-show="!$store.auth.loading && $store.auth.currentUser">
+      <div x-show="currentPage === 'dashboard'">
+        <h2 class="text-2xl font-bold mb-4">Dashboard</h2>
+        <p class="text-gray-700 mb-4">
+          Welcome, <span class="font-semibold" x-text="$store.auth.userData.displayName"></span>!
+        </p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <template x-if="$store.auth.userData.role === 'admin'">
+            <div class="p-4 bg-white rounded shadow">
+              <h3 class="font-semibold">Manage Users</h3>
+              <button @click="goTo('adminPanel')" class="text-blue-600 hover:underline text-sm mt-1">
+                Open Admin Panel
+              </button>
+            </div>
+          </template>
           <div class="p-4 bg-white rounded shadow">
-            <h3 class="font-semibold">Manage Users</h3>
-            <button @click="goTo('adminPanel')" class="text-blue-600 hover:underline text-sm mt-1">
-              Open Admin Panel
+            <h3 class="font-semibold">Grant Programs</h3>
+            <button @click="goTo('grantPrograms')" class="text-blue-600 hover:underline text-sm mt-1">
+              View Programs
             </button>
           </div>
-        </template>
-        <div class="p-4 bg-white rounded shadow">
-          <h3 class="font-semibold">Grant Programs</h3>
-          <button @click="goTo('grantPrograms')" class="text-blue-600 hover:underline text-sm mt-1">
-            View Programs
-          </button>
-        </div>
-        <div class="p-4 bg-white rounded shadow">
-          <h3 class="font-semibold">My Applications</h3>
-          <button @click="goTo('myApplications')" class="text-blue-600 hover:underline text-sm mt-1">
-            View Applications
-          </button>
+          <div class="p-4 bg-white rounded shadow">
+            <h3 class="font-semibold">My Applications</h3>
+            <button @click="goTo('myApplications')" class="text-blue-600 hover:underline text-sm mt-1">
+              View Applications
+            </button>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- Dynamic Pages -->
-    <div x-show="$store.auth.currentUser">
       <template x-if="currentPage === 'grantPrograms'">
         <?!= include('GrantProgramListPage'); ?>
       </template>
       <template x-if="currentPage === 'grantProgramForm'">
         <?!= include('GrantProgramFormPage'); ?>
       </template>
-    </div>
+      </div>
   </main>
 </div>
+
+<script>
+  // This will be assigned the main app's navigation function so child components can use it.
+  let goTo;
+
+  document.addEventListener('alpine:init', () => {
+
+    // --- Reusable Server Call Handler ---
+    const handleGoogleScriptRun = (component, serverFunction, ...args) => {
+      return new Promise((resolve, reject) => {
+        if (component) {
+          component.loading = true;
+          component.error = null;
+        }
+        google.script.run
+          .withSuccessHandler((result) => {
+            if (component) component.loading = false;
+            resolve(result);
+          })
+          .withFailureHandler((err) => {
+            if (component) {
+              component.loading = false;
+              component.error = err.message || 'An unexpected error occurred.';
+            }
+            console.error(`Error in ${serverFunction}:`, err);
+            reject(err);
+          })
+          [serverFunction](...args);
+      });
+    };
+
+    // --- Alpine Stores ---
+    Alpine.store('auth', {
+      currentUser: null,
+      userData: null,
+      loading: true,
+      isAuthReady: false,
+    });
+
+    // --- Page-specific Components ---
+    Alpine.data('grantProgramList', () => ({
+      programs: [],
+      loading: true,
+      error: null,
+      init() {
+        this.loadPrograms();
+      },
+      async loadPrograms() {
+        try {
+          this.programs = await handleGoogleScriptRun(this, 'queryCollection', 'grantPrograms');
+        } catch (e) { /* Error is handled by the wrapper */ }
+      }
+    }));
+
+    Alpine.data('grantProgramForm', (params) => ({
+      isEdit: !!params?.docId,
+      form: { title: '', description: '' },
+      loading: false,
+      error: null,
+      init() {
+        if (this.isEdit) {
+          this.loadExisting();
+        }
+      },
+      async loadExisting() {
+        try {
+          const doc = await handleGoogleScriptRun(this, 'getDoc', 'grantPrograms', params.docId);
+          if (doc) this.form = doc;
+          else this.error = "Document not found.";
+        } catch (e) { /* Error handled by wrapper */ }
+      },
+      async save() {
+        try {
+          const method = this.isEdit ? 'updateDoc' : 'addDoc';
+          const data = this.isEdit
+            ? ['grantPrograms', this.form.id, this.form]
+            : ['grantPrograms', { ...this.form }]; // ID is generated server-side now
+
+          await handleGoogleScriptRun(this, method, ...data);
+          goTo('grantPrograms'); // Use global navigator
+        } catch (e) { /* Error handled by wrapper */ }
+      }
+    }));
+
+    // --- Main App Component ---
+    Alpine.data('grantApp', () => ({
+      currentPage: 'dashboard',
+      pageParams: {},
+      init() {
+        // Assign this component's navigation method to the global 'goTo' variable.
+        goTo = this.navigateTo.bind(this);
+        this.fetchCurrentUser();
+      },
+      async fetchCurrentUser() {
+        const authStore = Alpine.store('auth');
+        authStore.loading = true;
+        try {
+            const result = await handleGoogleScriptRun(null, 'getCurrentUser');
+            authStore.currentUser = result.currentUser;
+            authStore.userData = result.userData;
+        } catch (e) {
+            authStore.currentUser = null;
+            authStore.userData = null;
+        } finally {
+            authStore.isAuthReady = true;
+            authStore.loading = false;
+        }
+      },
+      navigateTo(page, params = {}) {
+        this.currentPage = page;
+        this.pageParams = params;
+      },
+      signOut() {
+        // In a real app, this would redirect to a Google sign-out URL.
+        alert('Sign-out functionality is not implemented in this version.');
+      }
+    }));
+  });
+</script>
