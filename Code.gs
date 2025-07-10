@@ -2,18 +2,25 @@
 // --- CONFIGURATION ---
 // =================================================================
 
-// ID of the Google Sheet to use as a database
-const DATABASE_SHEET_ID = '1Z3Bob6FK8jhU3m-bmy6AEF51YLzgw5yWGkumd1OilKc/edit?gid=0#gid=0'; 
+// IMPORTANT: Ensure this is the ID of your Google Drive folder.
+const ROOT_DATA_FOLDER_ID = '1uVfYrTuoSJ3ZKmclC_6xl7qZTdo1nICx';
 
 const COLLECTIONS = {
   GRANT_PROGRAMS: 'grantPrograms',
-  // You would add other sheet names here, like 'applications', etc.
+  APPLICATIONS: 'applications',
+  REVIEWS: 'reviews',
+  USER_PROFILES: 'userProfiles',
+  ATTACHMENTS: 'attachments'
 };
 
 
 // =================================================================
 // --- WEB APP & HTML SERVICE ---
 // =================================================================
+
+/**
+ * Serves the main HTML page of the web application.
+ */
 function doGet() {
   return HtmlService.createTemplateFromFile('Index')
       .evaluate()
@@ -21,6 +28,12 @@ function doGet() {
       .setSandboxMode(HtmlService.SandboxMode.IFRAME);
 }
 
+/**
+
+ * Includes HTML partials into the main template.
+ * @param {string} filename The name of the HTML file to include.
+ * @returns {string} The HTML content.
+ */
 function include(filename) {
   return HtmlService.createTemplateFromFile(filename).evaluate().getContent();
 }
@@ -28,129 +41,278 @@ function include(filename) {
 
 // =================================================================
 // --- AUTHENTICATION & USER SERVICE ---
-// (No changes from the previous version)
 // =================================================================
+
 const UserService = {
-  getActiveUser: function() { /* ... */ },
-  getUserProfile: function(user) { /* ... */ }, // Note: This still uses DriveService
-  authorize: function(requiredRole) { /* ... */ }
-};
-
-
-// =================================================================
-// --- SHEET DATABASE SERVICE ---
-// This service replaces most of the DriveService functionality for structured data.
-// =================================================================
-const SheetService = {
-  _spreadsheet: null,
-
-  getSpreadsheet: function() {
-    if (this._spreadsheet) return this._spreadsheet;
-    if (DATABASE_SHEET_ID === 'YOUR_GOOGLE_SHEET_ID_HERE') {
-      throw new Error("DATABASE_SHEET_ID is not configured in Code.gs");
+  /**
+   * Gets the active user's email and basic info.
+   * @returns {GoogleAppsScript.Base.User} The active user object.
+   * @throws {Error} If the user is not accessing the script.
+   */
+  getActiveUser: function() {
+    const user = Session.getActiveUser();
+    if (!user || !user.getEmail()) {
+      throw new Error("Could not identify the active user. Please ensure you are logged in.");
     }
-    try {
-      this._spreadsheet = SpreadsheetApp.openById(DATABASE_SHEET_ID);
-      return this._spreadsheet;
-    } catch (e) {
-      throw new Error("Could not open the Google Sheet. Check the ID and permissions.");
+    Logger.log(`[AUTH] Active user identified: ${user.getEmail()}`);
+    return user;
+  },
+
+  /**
+   * Retrieves or creates a user profile from the 'userProfiles' collection.
+   * @param {GoogleAppsScript.Base.User} user The active user object.
+   * @returns {object} The user's profile data.
+   */
+  getUserProfile: function(user) {
+    const userEmail = user.getEmail();
+    Logger.log(`[AUTH] Getting profile for: ${userEmail}`);
+    let profile = DriveService.readFile(COLLECTIONS.USER_PROFILES, userEmail);
+
+    if (profile) {
+      Logger.log(`[AUTH] Found existing profile. Role: '${profile.role}'. Data: ${JSON.stringify(profile)}`);
+    } else {
+      // Create a new profile for a first-time user
+      profile = {
+        uid: userEmail,
+        email: userEmail,
+        displayName: user.getUsername().split('@')[0],
+        role: 'seeker', // Default role for new users
+        createdAt: new Date().toISOString()
+      };
+      Logger.log(`[AUTH] No profile found. Creating new profile with default 'seeker' role.`);
+      DriveService.writeFile(COLLECTIONS.USER_PROFILES, userEmail, profile);
     }
-  },
-  
-  getSheet: function(sheetName) {
-    const ss = this.getSpreadsheet();
-    const sheet = ss.getSheetByName(sheetName);
-    if (!sheet) throw new Error(`Sheet "${sheetName}" not found in the database.`);
-    return sheet;
-  },
-  
-  // Converts a sheet's data to an array of objects
-  sheetToObjects: function(sheet) {
-    const data = sheet.getDataRange().getValues();
-    const headers = data.shift();
-    return data.map(row => {
-      const obj = {};
-      headers.forEach((header, i) => obj[header] = row[i]);
-      return obj;
-    });
+    return profile;
   },
 
-  // Appends a new record object to a sheet
-  appendObject: function(sheetName, obj) {
-    const sheet = this.getSheet(sheetName);
-    const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-    const row = headers.map(header => obj[header] || "");
-    sheet.appendRow(row);
-    return obj;
-  },
+  /**
+   * Checks if the current user has the required role.
+   * @param {string|Array<string>} requiredRole The role(s) to check for.
+   * @throws {Error} If the user is not authorized.
+   */
+  authorize: function(requiredRole) {
+    const user = this.getActiveUser();
+    const profile = this.getUserProfile(user);
+    const roles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
 
-  // Updates an existing record
-  updateObject: function(sheetName, id, updatedObject) {
-    const sheet = this.getSheet(sheetName);
-    const data = sheet.getDataRange().getValues();
-    const headers = data.shift();
-    const idColumnIndex = headers.indexOf('id');
-    if (idColumnIndex === -1) throw new Error("No 'id' column found.");
-
-    const rowIndex = data.findIndex(row => row[idColumnIndex] === id);
-    if (rowIndex === -1) throw new Error(`Record with id ${id} not found.`);
-    
-    const rowToUpdate = headers.map(header => updatedObject[header] || "");
-    sheet.getRange(rowIndex + 2, 1, 1, headers.length).setValues([rowToUpdate]);
-    return updatedObject;
-  },
-
-  // Finds a single object by its ID
-  findObjectById: function(sheetName, id) {
-    const sheet = this.getSheet(sheetName);
-    const data = this.sheetToObjects(sheet);
-    return data.find(item => item.id === id) || null;
+    if (!roles.includes(profile.role)) {
+      Logger.log(`[AUTH] Authorization FAILED. User role '${profile.role}' is not in required roles '${roles.join(', ')}'.`);
+      throw new Error(`Authorization Error: Role '${roles.join(', ')}' is required.`);
+    }
+    Logger.log(`[AUTH] Authorization SUCCESS. User role '${profile.role}' is valid.`);
   }
 };
 
 
 // =================================================================
-// --- API ENDPOINTS (Now using SheetService) ---
+// --- DRIVE DATABASE SERVICE ---
 // =================================================================
-function getCurrentUser() { /* ... no change ... */ }
+
+const DriveService = {
+  _rootFolder: null,
+  _collectionFolders: {},
+
+  /**
+   * Gets the root data folder for the application.
+   * @returns {GoogleAppsScript.Drive.Folder} The root folder object.
+   */
+  getRootFolder: function() {
+    if (this._rootFolder) return this._rootFolder;
+    try {
+      this._rootFolder = DriveApp.getFolderById(ROOT_DATA_FOLDER_ID);
+      return this._rootFolder;
+    } catch (e) {
+      throw new Error(`Failed to find root data folder. Check ID: ${ROOT_DATA_FOLDER_ID}`);
+    }
+  },
+
+  /**
+   * Gets or creates a collection folder within the root folder.
+   * @param {string} collectionName The name of the collection.
+   * @returns {GoogleAppsScript.Drive.Folder} The collection folder object.
+   */
+  getCollectionFolder: function(collectionName) {
+    if (this._collectionFolders[collectionName]) {
+      return this._collectionFolders[collectionName];
+    }
+    const root = this.getRootFolder();
+    const lock = LockService.getScriptLock();
+    lock.waitLock(30000);
+    try {
+      const folders = root.getFoldersByName(collectionName);
+      if (folders.hasNext()) {
+        this._collectionFolders[collectionName] = folders.next();
+      } else {
+        this._collectionFolders[collectionName] = root.createFolder(collectionName);
+      }
+      return this._collectionFolders[collectionName];
+    } finally {
+      lock.releaseLock();
+    }
+  },
+
+  /**
+   * Reads and parses a JSON file from a collection.
+   * @param {string} collectionName The name of the collection.
+   * @param {string} docId The ID/filename of the document.
+   * @returns {object|null} The parsed JSON object or null if not found.
+   */
+  readFile: function(collectionName, docId) {
+    try {
+      const collectionFolder = this.getCollectionFolder(collectionName);
+      const files = collectionFolder.getFilesByName(`${docId}.json`);
+      if (files.hasNext()) {
+        const content = files.next().getBlob().getDataAsString();
+        return JSON.parse(content);
+      }
+      return null;
+    } catch (e) {
+      Logger.log(`Error reading ${collectionName}/${docId}: ${e.message}`);
+      return null;
+    }
+  },
+
+  /**
+   * Writes an object to a JSON file in a collection.
+   * @param {string} collectionName The name of the collection.
+   * @param {string} docId The ID/filename for the document.
+   * @param {object} content The object to serialize and write.
+   * @returns {string} The docId.
+   */
+  writeFile: function(collectionName, docId, content) {
+    const collectionFolder = this.getCollectionFolder(collectionName);
+    const fileName = `${docId}.json`;
+    const jsonString = JSON.stringify(content, null, 2);
+    
+    const files = collectionFolder.getFilesByName(fileName);
+    if (files.hasNext()) {
+      files.next().setContent(jsonString);
+    } else {
+      collectionFolder.createFile(fileName, jsonString, 'application/json');
+    }
+    return docId;
+  },
+
+  /**
+   * Deletes a file from a collection.
+   * @param {string} collectionName The name of the collection.
+   * @param {string} docId The ID/filename of the document.
+   * @returns {boolean} True if the file was trashed.
+   */
+  deleteFile: function(collectionName, docId) {
+    const collectionFolder = this.getCollectionFolder(collectionName);
+    const files = collectionFolder.getFilesByName(`${docId}.json`);
+    if (files.hasNext()) {
+      files.next().setTrashed(true);
+      return true;
+    }
+    return false;
+  },
+  
+  /**
+   * Lists all documents in a collection.
+   * @param {string} collectionName The name of the collection.
+   * @returns {Array<object>} An array of document objects.
+   */
+  listCollection: function(collectionName) {
+    const collectionFolder = this.getCollectionFolder(collectionName);
+    const files = collectionFolder.getFilesByType('application/json');
+    const docs = [];
+    while(files.hasNext()) {
+      const file = files.next();
+      try {
+        const doc = JSON.parse(file.getBlob().getDataAsString());
+        doc.id = file.getName().replace('.json', '');
+        docs.push(doc);
+      } catch(e) { /* ignore malformed json */ }
+    }
+    return docs;
+  }
+};
+
+
+// =================================================================
+// --- API ENDPOINTS (Exposed to Client) ---
+// =================================================================
+
+function getCurrentUser() {
+  try {
+    const user = UserService.getActiveUser();
+    const profile = UserService.getUserProfile(user);
+    return {
+      currentUser: { email: user.getEmail(), displayName: profile.displayName },
+      userData: profile,
+      isAuthReady: true,
+      loading: false
+    };
+  } catch (e) {
+    Logger.log(`Error in getCurrentUser: ${e.toString()}`);
+    return { currentUser: null, userData: null, isAuthReady: true, loading: false };
+  }
+}
 
 function addDoc(collectionName, data) {
   UserService.authorize(['admin', 'seeker']);
   const user = UserService.getActiveUser();
-  
-  const dataToSave = { ...data };
-  dataToSave.id = Utilities.getUuid(); // Generate ID for the sheet
-  dataToSave.createdAt = new Date().toISOString();
-  dataToSave.createdBy = user.getEmail();
-  
-  return SheetService.appendObject(collectionName, dataToSave);
+  const newId = Utilities.getUuid();
+  const dataToSave = { ...data, createdAt: new Date().toISOString(), createdBy: user.getEmail() };
+  DriveService.writeFile(collectionName, newId, dataToSave);
+  return { id: newId, ...dataToSave };
 }
 
 function updateDoc(collectionName, docId, data) {
   UserService.authorize('admin');
   const user = UserService.getActiveUser();
+  const existingDoc = DriveService.readFile(collectionName, docId);
+  if (!existingDoc) throw new Error(`Document ${docId} not found.`);
+  const dataToUpdate = { ...existingDoc, ...data, updatedAt: new Date().toISOString(), updatedBy: user.getEmail() };
+  DriveService.writeFile(collectionName, docId, dataToUpdate);
+  return true;
+}
 
-  const dataToUpdate = { ...data };
-  dataToUpdate.updatedAt = new Date().toISOString();
-  dataToUpdate.updatedBy = user.getEmail();
-
-  return SheetService.updateObject(collectionName, docId, dataToUpdate);
+function deleteDoc(collectionName, docId) {
+    UserService.authorize('admin');
+    return DriveService.deleteFile(collectionName, docId);
 }
 
 function getDoc(collectionName, docId) {
   UserService.authorize(['admin', 'seeker']);
-  return SheetService.findObjectById(collectionName, docId);
+  return DriveService.readFile(collectionName, docId);
 }
 
 function queryCollection(collectionName, filters = [], orderBy = []) {
   UserService.authorize(['admin', 'seeker']);
-  const sheet = SheetService.getSheet(collectionName);
-  let docs = SheetService.sheetToObjects(sheet);
+  let docs = DriveService.listCollection(collectionName);
+  filters.forEach(filter => {
+    docs = docs.filter(doc => {
+      const docValue = doc[filter.field];
+      switch (filter.operator) {
+        case '==': return docValue === filter.value;
+        case 'array-contains': return Array.isArray(docValue) && docValue.includes(filter.value);
+        case 'in': return Array.isArray(filter.value) && filter.value.includes(docValue);
+        default: return false;
+      }
+    });
+  });
 
-  // Filtering and sorting logic remains the same for now, but operates on
-  // the data from the sheet, which is loaded much more quickly.
-  filters.forEach(filter => { /* ... */ });
-  orderBy.forEach(sortRule => { /* ... */ });
+  // ... (keep getCurrentUser, addDoc, updateDoc, deleteDoc, getDoc, queryCollection functions)
 
+/**
+ * Gets all user profiles. ADMIN ONLY.
+ */
+function getAllUserProfiles() {
+  UserService.authorize('admin');
+  // NOTE: This uses the Drive-based user profile system.
+  // This is acceptable as the number of users is likely to be small.
+  return DriveService.listCollection(COLLECTIONS.USER_PROFILES);
+}
+
+  orderBy.forEach(sortRule => {
+    docs.sort((a, b) => {
+      if (a[sortRule.field] < b[sortRule.field]) return sortRule.direction === 'asc' ? -1 : 1;
+      if (a[sortRule.field] > b[sortRule.field]) return sortRule.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+  });
   return docs;
 }

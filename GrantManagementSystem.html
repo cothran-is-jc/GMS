@@ -7,7 +7,7 @@
   <header class="bg-white shadow">
     <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
       <h1 class="text-xl font-bold text-gray-800">GrantMaster</h1>
-      <template x-if="$store.auth.isAuthReady && $store.auth.currentUser">
+      <template x-if="$store.auth.isAuthReady && $store.auth.currentUser && $store.auth.userData">
         <div class="flex items-center space-x-4">
           <span class="text-gray-700" x-text="$store.auth.userData.displayName"></span>
           <div class="relative" x-data="{ open: false }">
@@ -39,53 +39,51 @@
       <p class="text-gray-600">You must be signed in with a Google account to access this system.</p>
     </div>
 
-    <div x-show="!$store.auth.loading && $store.auth.currentUser">
-      <div x-show="currentPage === 'dashboard'">
-        <h2 class="text-2xl font-bold mb-4">Dashboard</h2>
-        <p class="text-gray-700 mb-4">
-          Welcome, <span class="font-semibold" x-text="$store.auth.userData.displayName"></span>!
-        </p>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <template x-if="$store.auth.userData.role === 'admin'">
+    <template x-if="!$store.auth.loading && $store.auth.currentUser && $store.auth.userData">
+      <div class="w-full">
+        <div x-show="currentPage === 'dashboard'">
+          <h2 class="text-2xl font-bold mb-4">Dashboard</h2>
+          <p class="text-gray-700 mb-4">
+            Welcome, <span class="font-semibold" x-text="$store.auth.userData.displayName"></span>!
+          </p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <template x-if="$store.auth.userData.role === 'admin'">
+              <div class="p-4 bg-white rounded shadow">
+                <h3 class="font-semibold">Manage Users</h3>
+                <button @click="goTo('adminPanel')" class="text-blue-600 hover:underline text-sm mt-1">
+                  Open Admin Panel
+                </button>
+              </div>
+            </template>
             <div class="p-4 bg-white rounded shadow">
-              <h3 class="font-semibold">Manage Users</h3>
-              <button @click="goTo('adminPanel')" class="text-blue-600 hover:underline text-sm mt-1">
-                Open Admin Panel
+              <h3 class="font-semibold">Grant Programs</h3>
+              <button @click="goTo('grantPrograms')" class="text-blue-600 hover:underline text-sm mt-1">
+                View Programs
               </button>
             </div>
-          </template>
-          <div class="p-4 bg-white rounded shadow">
-            <h3 class="font-semibold">Grant Programs</h3>
-            <button @click="goTo('grantPrograms')" class="text-blue-600 hover:underline text-sm mt-1">
-              View Programs
-            </button>
-          </div>
-          <div class="p-4 bg-white rounded shadow">
-            <h3 class="font-semibold">My Applications</h3>
-            <button @click="goTo('myApplications')" class="text-blue-600 hover:underline text-sm mt-1">
-              View Applications
-            </button>
+            <div class="p-4 bg-white rounded shadow">
+              <h3 class="font-semibold">My Applications</h3>
+              <button @click="goTo('myApplications')" class="text-blue-600 hover:underline text-sm mt-1">
+                View Applications
+              </button>
+            </div>
           </div>
         </div>
-      </div>
 
-      <template x-if="currentPage === 'grantPrograms'">
-        <?!= include('GrantProgramListPage'); ?>
-      </template>
-      <template x-if="currentPage === 'grantProgramForm'">
-        <?!= include('GrantProgramFormPage'); ?>
-      </template>
+        <template x-if="currentPage === 'grantPrograms'">
+          <?!= include('GrantProgramListPage'); ?>
+        </template>
+        <template x-if="currentPage === 'grantProgramForm'">
+          <?!= include('GrantProgramFormPage'); ?>
+        </template>
       </div>
+    </template>
   </main>
 </div>
 
 <script>
-  // This will be assigned the main app's navigation function so child components can use it.
   let goTo;
-
   document.addEventListener('alpine:init', () => {
-
-    // --- Reusable Server Call Handler ---
     const handleGoogleScriptRun = (component, serverFunction, ...args) => {
       return new Promise((resolve, reject) => {
         if (component) {
@@ -109,7 +107,6 @@
       });
     };
 
-    // --- Alpine Stores ---
     Alpine.store('auth', {
       currentUser: null,
       userData: null,
@@ -117,18 +114,15 @@
       isAuthReady: false,
     });
 
-    // --- Page-specific Components ---
     Alpine.data('grantProgramList', () => ({
       programs: [],
       loading: true,
       error: null,
-      init() {
-        this.loadPrograms();
-      },
+      init() { this.loadPrograms(); },
       async loadPrograms() {
         try {
           this.programs = await handleGoogleScriptRun(this, 'queryCollection', 'grantPrograms');
-        } catch (e) { /* Error is handled by the wrapper */ }
+        } catch (e) { /* Handled by wrapper */ }
       }
     }));
 
@@ -138,36 +132,31 @@
       loading: false,
       error: null,
       init() {
-        if (this.isEdit) {
-          this.loadExisting();
-        }
+        if (this.isEdit) this.loadExisting();
       },
       async loadExisting() {
         try {
           const doc = await handleGoogleScriptRun(this, 'getDoc', 'grantPrograms', params.docId);
           if (doc) this.form = doc;
           else this.error = "Document not found.";
-        } catch (e) { /* Error handled by wrapper */ }
+        } catch (e) { /* Handled */ }
       },
       async save() {
         try {
           const method = this.isEdit ? 'updateDoc' : 'addDoc';
           const data = this.isEdit
             ? ['grantPrograms', this.form.id, this.form]
-            : ['grantPrograms', { ...this.form }]; // ID is generated server-side now
-
+            : ['grantPrograms', { ...this.form }];
           await handleGoogleScriptRun(this, method, ...data);
-          goTo('grantPrograms'); // Use global navigator
-        } catch (e) { /* Error handled by wrapper */ }
+          goTo('grantPrograms');
+        } catch (e) { /* Handled */ }
       }
     }));
 
-    // --- Main App Component ---
     Alpine.data('grantApp', () => ({
       currentPage: 'dashboard',
       pageParams: {},
       init() {
-        // Assign this component's navigation method to the global 'goTo' variable.
         goTo = this.navigateTo.bind(this);
         this.fetchCurrentUser();
       },
@@ -191,8 +180,7 @@
         this.pageParams = params;
       },
       signOut() {
-        // In a real app, this would redirect to a Google sign-out URL.
-        alert('Sign-out functionality is not implemented in this version.');
+        alert('Sign-out not implemented.');
       }
     }));
   });
