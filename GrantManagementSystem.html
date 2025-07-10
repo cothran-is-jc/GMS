@@ -183,5 +183,20 @@
         alert('Sign-out not implemented.');
       }
     }));
+
+    // ADD THIS COMPONENT for the Admin Panel
+    Alpine.data('adminPanel', () => ({
+      users: [],
+      loading: true,
+      error: null,
+      init() {
+        this.loadUsers();
+      },
+      async loadUsers() {
+        try {
+          this.users = await handleGoogleScriptRun(this, 'getAllUserProfiles');
+        } catch (e) { /* Error is handled by the wrapper */ }
+      }
+    }));
   });
 </script>

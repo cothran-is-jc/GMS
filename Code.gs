@@ -18,9 +18,6 @@ const COLLECTIONS = {
 // --- WEB APP & HTML SERVICE ---
 // =================================================================
 
-/**
- * Serves the main HTML page of the web application.
- */
 function doGet() {
   return HtmlService.createTemplateFromFile('Index')
       .evaluate()
@@ -28,12 +25,6 @@ function doGet() {
       .setSandboxMode(HtmlService.SandboxMode.IFRAME);
 }
 
-/**
-
- * Includes HTML partials into the main template.
- * @param {string} filename The name of the HTML file to include.
- * @returns {string} The HTML content.
- */
 function include(filename) {
   return HtmlService.createTemplateFromFile(filename).evaluate().getContent();
 }
@@ -44,11 +35,6 @@ function include(filename) {
 // =================================================================
 
 const UserService = {
-  /**
-   * Gets the active user's email and basic info.
-   * @returns {GoogleAppsScript.Base.User} The active user object.
-   * @throws {Error} If the user is not accessing the script.
-   */
   getActiveUser: function() {
     const user = Session.getActiveUser();
     if (!user || !user.getEmail()) {
@@ -58,11 +44,6 @@ const UserService = {
     return user;
   },
 
-  /**
-   * Retrieves or creates a user profile from the 'userProfiles' collection.
-   * @param {GoogleAppsScript.Base.User} user The active user object.
-   * @returns {object} The user's profile data.
-   */
   getUserProfile: function(user) {
     const userEmail = user.getEmail();
     Logger.log(`[AUTH] Getting profile for: ${userEmail}`);
@@ -71,12 +52,11 @@ const UserService = {
     if (profile) {
       Logger.log(`[AUTH] Found existing profile. Role: '${profile.role}'. Data: ${JSON.stringify(profile)}`);
     } else {
-      // Create a new profile for a first-time user
       profile = {
         uid: userEmail,
         email: userEmail,
         displayName: user.getUsername().split('@')[0],
-        role: 'seeker', // Default role for new users
+        role: 'seeker', // Default role
         createdAt: new Date().toISOString()
       };
       Logger.log(`[AUTH] No profile found. Creating new profile with default 'seeker' role.`);
@@ -85,11 +65,6 @@ const UserService = {
     return profile;
   },
 
-  /**
-   * Checks if the current user has the required role.
-   * @param {string|Array<string>} requiredRole The role(s) to check for.
-   * @throws {Error} If the user is not authorized.
-   */
   authorize: function(requiredRole) {
     const user = this.getActiveUser();
     const profile = this.getUserProfile(user);
@@ -112,10 +87,6 @@ const DriveService = {
   _rootFolder: null,
   _collectionFolders: {},
 
-  /**
-   * Gets the root data folder for the application.
-   * @returns {GoogleAppsScript.Drive.Folder} The root folder object.
-   */
   getRootFolder: function() {
     if (this._rootFolder) return this._rootFolder;
     try {
@@ -126,11 +97,6 @@ const DriveService = {
     }
   },
 
-  /**
-   * Gets or creates a collection folder within the root folder.
-   * @param {string} collectionName The name of the collection.
-   * @returns {GoogleAppsScript.Drive.Folder} The collection folder object.
-   */
   getCollectionFolder: function(collectionName) {
     if (this._collectionFolders[collectionName]) {
       return this._collectionFolders[collectionName];
@@ -151,12 +117,6 @@ const DriveService = {
     }
   },
 
-  /**
-   * Reads and parses a JSON file from a collection.
-   * @param {string} collectionName The name of the collection.
-   * @param {string} docId The ID/filename of the document.
-   * @returns {object|null} The parsed JSON object or null if not found.
-   */
   readFile: function(collectionName, docId) {
     try {
       const collectionFolder = this.getCollectionFolder(collectionName);
@@ -172,13 +132,6 @@ const DriveService = {
     }
   },
 
-  /**
-   * Writes an object to a JSON file in a collection.
-   * @param {string} collectionName The name of the collection.
-   * @param {string} docId The ID/filename for the document.
-   * @param {object} content The object to serialize and write.
-   * @returns {string} The docId.
-   */
   writeFile: function(collectionName, docId, content) {
     const collectionFolder = this.getCollectionFolder(collectionName);
     const fileName = `${docId}.json`;
@@ -193,12 +146,6 @@ const DriveService = {
     return docId;
   },
 
-  /**
-   * Deletes a file from a collection.
-   * @param {string} collectionName The name of the collection.
-   * @param {string} docId The ID/filename of the document.
-   * @returns {boolean} True if the file was trashed.
-   */
   deleteFile: function(collectionName, docId) {
     const collectionFolder = this.getCollectionFolder(collectionName);
     const files = collectionFolder.getFilesByName(`${docId}.json`);
@@ -209,23 +156,38 @@ const DriveService = {
     return false;
   },
   
-  /**
-   * Lists all documents in a collection.
-   * @param {string} collectionName The name of the collection.
-   * @returns {Array<object>} An array of document objects.
-   */
   listCollection: function(collectionName) {
+    Logger.log(`[DRIVE] Attempting to list collection: '${collectionName}'`);
     const collectionFolder = this.getCollectionFolder(collectionName);
+    Logger.log(`[DRIVE] Found collection folder: '${collectionFolder.getName()}' (ID: ${collectionFolder.getId()})`);
+
     const files = collectionFolder.getFilesByType('application/json');
     const docs = [];
+    let fileCount = 0;
+
     while(files.hasNext()) {
       const file = files.next();
+      fileCount++;
+      Logger.log(`[DRIVE] Processing file #${fileCount}: ${file.getName()}`);
       try {
-        const doc = JSON.parse(file.getBlob().getDataAsString());
-        doc.id = file.getName().replace('.json', '');
-        docs.push(doc);
-      } catch(e) { /* ignore malformed json */ }
+        const content = file.getBlob().getDataAsString();
+        if (content) {
+            const doc = JSON.parse(content);
+            doc.id = file.getName().replace('.json', '');
+            docs.push(doc);
+        } else {
+            Logger.log(`[DRIVE] WARNING: File ${file.getName()} is empty.`);
+        }
+      } catch(e) {
+         Logger.log(`[DRIVE] ERROR: Failed to parse JSON for file ${file.getName()}. Error: ${e.message}`);
+      }
     }
+
+    if(fileCount === 0) {
+        Logger.log(`[DRIVE] No '.json' files found in the '${collectionName}' folder.`);
+    }
+
+    Logger.log(`[DRIVE] Finished listing collection. Found ${docs.length} valid documents.`);
     return docs;
   }
 };
@@ -294,19 +256,6 @@ function queryCollection(collectionName, filters = [], orderBy = []) {
       }
     });
   });
-
-  // ... (keep getCurrentUser, addDoc, updateDoc, deleteDoc, getDoc, queryCollection functions)
-
-/**
- * Gets all user profiles. ADMIN ONLY.
- */
-function getAllUserProfiles() {
-  UserService.authorize('admin');
-  // NOTE: This uses the Drive-based user profile system.
-  // This is acceptable as the number of users is likely to be small.
-  return DriveService.listCollection(COLLECTIONS.USER_PROFILES);
-}
-
   orderBy.forEach(sortRule => {
     docs.sort((a, b) => {
       if (a[sortRule.field] < b[sortRule.field]) return sortRule.direction === 'asc' ? -1 : 1;
@@ -315,4 +264,17 @@ function getAllUserProfiles() {
     });
   });
   return docs;
+}
+
+function getAllUserProfiles() {
+  Logger.log("--- Executing getAllUserProfiles ---");
+  try {
+    UserService.authorize('admin');
+    const profiles = DriveService.listCollection(COLLECTIONS.USER_PROFILES);
+    Logger.log(`--- Returning ${profiles.length} profiles from getAllUserProfiles ---`);
+    return profiles;
+  } catch (e) {
+    Logger.log(`--- ERROR in getAllUserProfiles: ${e.message} ---`);
+    throw e;
+  }
 }
