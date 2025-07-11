@@ -40,6 +40,7 @@
         <template x-if="currentPage === 'grantPrograms'"><?!= include('GrantProgramListPage'); ?></template>
         <template x-if="currentPage === 'grantProgramForm'"><?!= include('GrantProgramFormPage'); ?></template>
         <template x-if="currentPage === 'adminPanel'"><?!= include('AdminPanelPage'); ?></template>
+        <template x-if="currentPage === 'grantProgramDetail'"><?!= include('GrantProgramDetailPage'); ?></template>
       </div>
     </template>
   </main>
@@ -79,6 +80,34 @@
       programs: [], loading: true, error: null,
       init() { this.loadPrograms(); },
       async loadPrograms() { try { this.programs = await handleGoogleScriptRun(this, 'queryCollection', 'grantPrograms'); } catch (e) {} }
+    }));
+    
+    Alpine.data('grantProgramDetail', (pageParams) => ({
+      program: null, loading: true, error: null,
+      init() { this.loadProgram(); },
+      async loadProgram() { 
+        this.loading = true;
+        try { 
+          this.program = await handleGoogleScriptRun(this, 'getRecordById', 'grantPrograms', pageParams.id); 
+        } catch(e) {
+          this.error = e.message;
+        } finally {
+          this.loading = false;
+        }
+      }
+    }));
+    
+    Alpine.data('grantProgramForm', (pageParams) => ({
+      form: { title: '', description: '' },
+      isEdit: false, loading: false, error: null,
+      init() {
+        if (pageParams && pageParams.id) {
+          this.isEdit = true;
+          this.loadProgram(pageParams.id);
+        }
+      },
+      async loadProgram(id) { this.loading = true; try { this.form = await handleGoogleScriptRun(this, 'getRecordById', 'grantPrograms', id); } catch(e) { this.error = e.message; } finally { this.loading = false; } },
+      async save() { try { await handleGoogleScriptRun(this, this.isEdit ? 'updateRecord' : 'createRecord', 'grantPrograms', this.form); goTo('grantPrograms'); } catch (e) { this.error = e.message; } }
     }));
 
     // --- UPDATED Admin Panel Component ---

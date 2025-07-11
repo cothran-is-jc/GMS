@@ -13,7 +13,7 @@
   <div x-show="!loading && programs.length > 0" class="bg-white shadow rounded-lg">
     <ul class="divide-y divide-gray-200">
       <template x-for="program in programs" :key="program.id">
-        <li class="p-4 hover:bg-gray-50">
+        <li @click="goTo('grantProgramDetail', { id: program.id })" class="p-4 hover:bg-gray-50 cursor-pointer">
           <h3 class="font-semibold text-lg" x-text="program.title"></h3>
           <p class="text-sm text-gray-600" x-text="program.description"></p>
         </li>
