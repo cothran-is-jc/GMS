@@ -1,5 +1,6 @@
 <div x-data="grantProgramDetail(pageParams)" x-init="init()" class="max-w-2xl mx-auto">
   <div class="bg-white p-6 rounded shadow space-y-4">
+    
     <div x-show="loading" class="text-center py-4">
       <i class="fas fa-spinner fa-spin text-xl text-gray-500"></i>
       <p class="mt-2 text-gray-600">Loading program details...</p>
@@ -10,12 +11,14 @@
     <template x-if="!loading && program">
       <div>
         <h2 class="text-2xl font-bold border-b pb-2 mb-4" x-text="program.title"></h2>
+        
         <div class="space-y-4">
           <div>
             <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Description</h3>
             <p class="text-gray-700 whitespace-pre-wrap mt-1" x-text="program.description"></p>
           </div>
           </div>
+
         <div class="mt-8 border-t pt-4">
           <button @click="goTo('grantPrograms')" class="text-blue-600 hover:underline text-sm">
             &larr; Back to All Programs
@@ -23,15 +26,6 @@
         </div>
       </div>
     </template>
+    
   </div>
-  <template x-if="currentPage === 'grantPrograms'">
-          <?!= include('GrantProgramListPage'); ?>
-        </template>
-        <template x-if="currentPage === 'grantProgramForm'">
-          <?!= include('GrantProgramFormPage'); ?>
-        </template>
-        
-        <template x-if="currentPage === 'grantProgramDetail'">
-          <?!= include('GrantProgramDetailPage'); ?>
-        </template>
 </div>

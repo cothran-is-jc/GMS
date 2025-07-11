@@ -142,31 +142,5 @@
       navigateTo(page, params = {}) { this.currentPage = page; this.pageParams = params; },
       signOut() { alert('Sign-out not implemented.'); }
     }));
-    / ADD THIS COMPONENT for the Grant Program Detail Page
-    Alpine.data('grantProgramDetail', (params) => ({
-      program: null,
-      loading: true,
-      error: null,
-      docId: params?.docId,
-      init() {
-        if (!this.docId) {
-          this.error = 'Error: No program ID was provided.';
-          this.loading = false;
-          return;
-        }
-        this.loadProgram();
-      },
-      async loadProgram() {
-        try {
-          // This calls your existing 'getDoc' function in Code.gs
-          const doc = await handleGoogleScriptRun(this, 'getDoc', 'grantPrograms', this.docId);
-          if (doc) {
-            this.program = doc;
-          } else {
-            this.error = "The requested grant program could not be found.";
-          }
-        } catch (e) { /* Error is handled by the wrapper */ }
-      }
-    }));
   });
 </script>

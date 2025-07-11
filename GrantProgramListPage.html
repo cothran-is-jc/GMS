@@ -12,24 +12,12 @@
 
   <div x-show="!loading && programs.length > 0" class="bg-white shadow rounded-lg">
     <ul class="divide-y divide-gray-200">
-      <ul class="divide-y divide-gray-200">
       <template x-for="program in programs" :key="program.id">
-        <li class="p-4 hover:bg-gray-50 flex justify-between items-center">
-          <div>
-            <h3 class="font-semibold text-lg" x-text="program.title"></h3>
-            <p class="text-sm text-gray-600" x-text="program.description"></p>
-          </div>
-          <div class="space-x-4 flex-shrink-0">
-            <button @click="goTo('grantProgramDetail', { docId: program.id })" class="bg-gray-100 text-gray-700 px-3 py-1 rounded hover:bg-gray-200 text-sm font-semibold">
-                View
-            </button>
-            <button @click="goTo('grantProgramForm', { docId: program.id })" class="text-blue-600 hover:underline text-sm font-semibold">
-                Edit
-            </button>
-          </div>
+        <li class="p-4 hover:bg-gray-50">
+          <h3 class="font-semibold text-lg" x-text="program.title"></h3>
+          <p class="text-sm text-gray-600" x-text="program.description"></p>
         </li>
       </template>
-    </ul>
     </ul>
   </div>
 
