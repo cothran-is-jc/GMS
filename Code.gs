@@ -116,10 +116,14 @@ const DriveService = {
       const files = collectionFolder.getFilesByName(`${docId}.json`);
       if (files.hasNext()) {
         const content = files.next().getBlob().getDataAsString();
-        return JSON.parse(content);
+        const doc = JSON.parse(content);
+        // This is the corrected line that adds the ID
+        doc.id = docId; 
+        return doc;
       }
       return null;
     } catch (e) {
+      console.error(`Failed to read file ${docId}.json in ${collectionName}:`, e);
       return null;
     }
   },
@@ -179,9 +183,21 @@ function queryCollection(collectionName, filters = [], orderBy = []) {
   return docs;
 }
 
-function getDoc(collectionName, docId) {
-  UserService.authorize(['admin', 'seeker']);
-  return DriveService.readFile(collectionName, docId);
+/**
+ * Retrieves a single record by its ID from a collection.
+ * @param {string} collectionName The name of the collection (e.g., 'grantPrograms').
+ * @param {string} docId The unique identifier for the record.
+ * @returns {Object} The found record or null.
+ */
+function getRecordById(collectionName, docId) {
+  UserService.authorize(['admin', 'seeker']); // Authorize user access
+  const doc = DriveService.readFile(collectionName, docId);
+  if (!doc) {
+    // Optionally, throw an error if the document is not found to provide clearer
+    // feedback to the client-side error handler.
+    throw new Error(`Document with ID '${docId}' not found in collection '${collectionName}'.`);
+  }
+  return doc;
 }
 
 function getAllUserProfiles() {
@@ -219,4 +235,136 @@ function updateUserRole(userEmail, newRole) {
 
   DriveService.writeFile(COLLECTIONS.USER_PROFILES, userEmail, profile);
   return true;
+}
+
+/**
+ * Creates a new document in a collection with a unique ID.
+ * @param {string} collectionName The name of the collection (e.g., 'grantPrograms').
+ * @param {Object} record The data to save.
+ * @returns {Object} The saved record, including its new ID.
+ */
+function createRecord(collectionName, record) {
+  UserService.authorize(['admin']); // Only admins can create programs
+  
+  // Generate a unique ID for the new record
+  const docId = Utilities.getUuid();
+  record.id = docId;
+  record.createdAt = new Date().toISOString();
+  record.createdBy = Session.getActiveUser().getEmail();
+
+  DriveService.writeFile(collectionName, docId, record);
+  return record;
+}
+
+/**
+ * Updates an existing document in a collection.
+ * @param {string} collectionName The name of the collection (e.g., 'grantPrograms').
+ * @param {Object} record The record data to update, must include an 'id'.
+ * @returns {Object} The updated record.
+ */
+function updateRecord(collectionName, record) {
+  UserService.authorize(['admin']); // Only admins can update programs
+
+  if (!record || !record.id) {
+    throw new Error("Cannot update: record data and ID are required.");
+  }
+  
+  // The readFile function will throw an error if the doc doesn't exist
+  const existingDoc = DriveService.readFile(collectionName, record.id);
+
+  // Preserve original creation data
+  record.createdAt = existingDoc.createdAt;
+  record.createdBy = existingDoc.createdBy;
+  
+  // Add update metadata
+  record.updatedAt = new Date().toISOString();
+  record.updatedBy = Session.getActiveUser().getEmail();
+
+  DriveService.writeFile(collectionName, record.id, record);
+  return record;
+}
+
+// =================================================================
+// --- GRANTS.GOV INTEGRATION ---
+// =================================================================
+
+/**
+ * Searches the public grants.gov API for funding opportunities.
+ * @param {string} keyword The search term.
+ * @returns {Array<Object>} A list of grant opportunities.
+ */
+function searchGrantsGov(keyword) {
+  // This endpoint does not require an API key
+  const endpoint = 'https://api.grants.gov/v1/api/search2';
+  
+  const payload = JSON.stringify({
+    "keyword": keyword
+  });
+
+  const options = {
+    'method': 'post',
+    'contentType': 'application/json',
+    'payload': payload
+  };
+  
+  try {
+    const response = UrlFetchApp.fetch(endpoint, options);
+    const data = JSON.parse(response.getContentText());
+    // The opportunities are in the 'opps' array of the response
+    return data.opps || [];
+  } catch (e) {
+    console.error("Error fetching from Grants.gov API: " + e);
+    return []; // Return an empty array on error
+  }
+}
+
+/**
+ * Fetches the full details of a single opportunity from Grants.gov.
+ * @param {string} opportunityId The ID of the grant to fetch.
+ * @returns {Object} The detailed grant data.
+ */
+function fetchGrantsGovOpportunity(opportunityId) {
+  // This endpoint also does not require an API key
+  const endpoint = 'https://api.grants.gov/v1/api/fetchOpportunity';
+  
+  const payload = JSON.stringify({
+    "opportunityId": opportunityId
+  });
+
+  const options = {
+    'method': 'post',
+    'contentType': 'application/json',
+    'payload': payload
+  };
+  
+  try {
+    const response = UrlFetchApp.fetch(endpoint, options);
+    return JSON.parse(response.getContentText());
+  } catch (e) {
+    console.error(`Error fetching opportunity ${opportunityId}:`, e);
+    throw new Error("Could not retrieve grant details from Grants.gov.");
+  }
+}
+
+/**
+ * Imports a grant from Grants.gov and saves it to the local system.
+ * @param {string} opportunityId The ID of the grant to import.
+ * @returns {Object} The newly created record.
+ */
+function importGrantFromGov(opportunityId) {
+  UserService.authorize(['admin']); // Ensure only admins can import
+
+  const grantDetails = fetchGrantsGovOpportunity(opportunityId);
+
+  // Reformat the data to match your application's data structure
+  const newRecord = {
+    title: grantDetails.synopsis.opportunityTitle,
+    description: grantDetails.synopsis.synopsisDesc,
+    // You can add more fields here as needed
+    source: 'Grants.gov',
+    sourceId: opportunityId
+  };
+  
+  // Use your existing createRecord function to save it
+  return createRecord(COLLECTIONS.GRANT_PROGRAMS, newRecord);
 }

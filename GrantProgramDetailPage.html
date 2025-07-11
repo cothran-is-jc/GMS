@@ -19,11 +19,17 @@
           </div>
           </div>
 
-        <div class="mt-8 border-t pt-4">
-          <button @click="goTo('grantPrograms')" class="text-blue-600 hover:underline text-sm">
+        <div class="mt-8 border-t pt-4 flex justify-between items-center">
+          <button @click="goTo('grantPrograms')" class="text-gray-600 hover:underline text-sm">
             &larr; Back to All Programs
           </button>
-        </div>
+
+          <button 
+            @click="goTo('grantProgramForm', { id: program.id })" 
+            class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          >
+            Edit Program
+          </button>
       </div>
     </template>
     
