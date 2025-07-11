@@ -1,7 +1,9 @@
 <div x-data="grantApp()" x-init="init()" x-cloak class="min-h-screen flex flex-col">
   <header class="bg-white shadow">
     <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-      <h1 class="text-xl font-bold text-gray-800">GrantMaster</h1>
+      <button @click="goTo('dashboard')" class="text-xl font-bold text-gray-800 hover:text-blue-600 transition-colors">
+        GrantMaster
+      </button>
       <template x-if="$store.auth.isAuthReady && $store.auth.currentUser">
         <div class="flex items-center space-x-4">
           <span class="text-gray-700" x-text="$store.auth.userData ? $store.auth.userData.displayName : ''"></span>
@@ -29,18 +31,46 @@
         <div x-show="currentPage === 'dashboard'">
           <h2 class="text-2xl font-bold mb-4">Dashboard</h2>
           <p class="text-gray-700 mb-4">Welcome, <span class="font-semibold" x-text="$store.auth.userData.displayName"></span>!</p>
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <template x-if="$store.auth.userData.role === 'admin'">
-              <div class="p-4 bg-white rounded shadow"><h3 class="font-semibold">Manage Users</h3><button @click="goTo('adminPanel')" class="text-blue-600 hover:underline text-sm mt-1">Open Admin Panel</button></div>
-            </template>
-            <div class="p-4 bg-white rounded shadow"><h3 class="font-semibold">Grant Programs</h3><button @click="goTo('grantPrograms')" class="text-blue-600 hover:underline text-sm mt-1">View Programs</button></div>
-            <div class="p-4 bg-white rounded shadow"><h3 class="font-semibold">My Applications</h3><button @click="goTo('myApplications')" class="text-blue-600 hover:underline text-sm mt-1">View Applications</button></div>
-          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+  
+  <template x-if="$store.auth.userData.role === 'admin'">
+    <div @click="goTo('adminPanel')" class="bg-white p-6 rounded-lg shadow-md hover:shadow-xl transition-shadow cursor-pointer flex items-center space-x-4">
+      <div class="bg-red-500 p-3 rounded-full">
+        <i class="fas fa-users-cog text-white text-xl"></i>
+      </div>
+      <div>
+        <h3 class="font-semibold text-lg">Manage Users</h3>
+        <p class="text-gray-500 text-sm">Update user roles and permissions</p>
+      </div>
+    </div>
+  </template>
+
+    <div @click="goTo('grantPrograms')" class="bg-white p-6 rounded-lg shadow-md hover:shadow-xl transition-shadow cursor-pointer flex items-center space-x-4">
+      <div class="bg-blue-500 p-3 rounded-full">
+        <i class="fas fa-list-ul text-white text-xl"></i>
+      </div>
+      <div>
+        <h3 class="font-semibold text-lg">Grant Programs</h3>
+        <p class="text-gray-500 text-sm">View and manage all programs</p>
+      </div>
+    </div>
+
+    <div @click="goTo('myApplications')" class="bg-white p-6 rounded-lg shadow-md hover:shadow-xl transition-shadow cursor-pointer flex items-center space-x-4">
+      <div class="bg-green-500 p-3 rounded-full">
+        <i class="fas fa-file-signature text-white text-xl"></i>
+      </div>
+      <div>
+        <h3 class="font-semibold text-lg">My Applications</h3>
+        <p class="text-gray-500 text-sm">View your submitted applications</p>
+      </div>
+    </div>
+  </div>
         </div>
         <template x-if="currentPage === 'grantPrograms'"><?!= include('GrantProgramListPage'); ?></template>
         <template x-if="currentPage === 'grantProgramForm'"><?!= include('GrantProgramFormPage'); ?></template>
         <template x-if="currentPage === 'adminPanel'"><?!= include('AdminPanelPage'); ?></template>
         <template x-if="currentPage === 'grantProgramDetail'"><?!= include('GrantProgramDetailPage'); ?></template>
+        <template x-if="currentPage === 'applicationForm'"><?!= include('ApplicationFormPage'); ?></template>
       </div>
     </template>
   </main>
@@ -111,62 +141,48 @@
     }));
     
     Alpine.data('grantProgramForm', (pageParams) => ({
-      form: { title: '', description: '' },
-      isEdit: false, loading: false, error: null,
+      form: { 
+        title: '', 
+        description: '',
+        opportunityId: '',
+        agency: '',
+        status: 'Posted',
+        fundingAmount: '',
+        postDate: '',
+        closeDate: ''
+      },
+      isEdit: false, 
+      loading: false, 
+      error: null,
+
+      // --- THIS IS THE MISSING LOGIC ---
       init() {
         if (pageParams && pageParams.id) {
           this.isEdit = true;
           this.loadProgram(pageParams.id);
         }
       },
-      async loadProgram(id) { this.loading = true; try { this.form = await handleGoogleScriptRun(this, 'getRecordById', 'grantPrograms', id); } catch(e) { this.error = e.message; } finally { this.loading = false; } },
-      async save() { try { await handleGoogleScriptRun(this, this.isEdit ? 'updateRecord' : 'createRecord', 'grantPrograms', this.form); goTo('grantPrograms'); } catch (e) { this.error = e.message; } }
-    }));
-
-    Alpine.data('grantsGovSearch', () => ({
-      keyword: '',
-      results: [],
-      loading: false,
-      error: null,
-      importingIds: [], // <-- Was missing
-      async search() {
-        if (!this.keyword.trim()) {
-          this.error = "Please enter a search keyword.";
-          return;
-        }
-        this.error = null;
-        this.loading = true;
-        this.results = []; 
-        try {
-          this.results = await handleGoogleScriptRun(null, 'searchGrantsGov', this.keyword);
-        } catch (e) {
-          this.error = e.message;
-        } finally {
-          this.loading = false;
-        }
+      async loadProgram(id) { 
+        this.loading = true; 
+        try { 
+          this.form = await handleGoogleScriptRun(this, 'getRecordById', 'grantPrograms', id); 
+        } catch(e) { 
+          this.error = e.message; 
+        } finally { 
+          this.loading = false; 
+        } 
       },
-      // --- This is the missing logic ---
-      isImporting(oppId) {
-        return this.importingIds.includes(oppId);
-      },
-      async importGrant(oppId) {
-        if (this.isImporting(oppId)) return;
-        
-        this.importingIds.push(oppId);
-        
-        try {
-          await handleGoogleScriptRun(null, 'importGrantFromGov', oppId);
-          this.results = this.results.filter(r => r.id !== oppId);
-          
-        } catch (e) {
-          alert('Error importing grant: ' + e.message);
-        } finally {
-          this.importingIds = this.importingIds.filter(id => id !== oppId);
-        }
+      async save() { 
+        try { 
+          await handleGoogleScriptRun(this, this.isEdit ? 'updateRecord' : 'createRecord', 'grantPrograms', this.form); 
+          goTo('grantPrograms'); 
+        } catch (e) { 
+          this.error = e.message; 
+        } 
       }
     }));
 
-    // --- UPDATED Admin Panel Component ---
+// --- ADD THIS ENTIRE COMPONENT BACK ---
     Alpine.data('adminPanel', () => ({
       users: [],
       loading: true,
@@ -189,7 +205,6 @@
         try {
           // We pass 'null' for the component so the global spinner doesn't show
           await handleGoogleScriptRun(null, 'updateUserRole', user.email, user.role);
-          // Optionally, add a temporary success message
         } catch (e) {
           // If the server threw an error, display it in the main error area
           this.error = e.message;
@@ -226,6 +241,52 @@
       },
       navigateTo(page, params = {}) { this.currentPage = page; this.pageParams = params; },
       signOut() { alert('Sign-out not implemented.'); }
+    }));
+    // Add this new component to your script tag
+    Alpine.data('applicationForm', (pageParams) => ({
+      pageParams: pageParams,
+      programTitle: '',
+      form: {
+        programId: null,
+        title: '',
+        essay: ''
+      },
+      loading: true,
+      submitting: false,
+      error: null,
+      init() {
+        if (!pageParams.programId) {
+          this.error = "No program ID was specified.";
+          this.loading = false;
+          return;
+        }
+        this.form.programId = pageParams.programId;
+        this.loadProgramTitle();
+      },
+      async loadProgramTitle() {
+        this.loading = true;
+        try {
+          const program = await handleGoogleScriptRun(null, 'getRecordById', 'grantPrograms', this.pageParams.programId);
+          this.programTitle = program.title;
+        } catch (e) {
+          this.error = e.message;
+        } finally {
+          this.loading = false;
+        }
+      },
+      async submitApplication() {
+        this.submitting = true;
+        this.error = null;
+        try {
+          await handleGoogleScriptRun(null, 'createApplication', this.form);
+          // After successful submission, go back to the program detail page
+          goTo('grantProgramDetail', { id: this.pageParams.programId });
+        } catch (e) {
+          this.error = e.message;
+        } finally {
+          this.submitting = false;
+        }
+      }
     }));
   });
 </script>

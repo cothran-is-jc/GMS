@@ -10,11 +10,17 @@
   <div x-show="error" class="text-red-500" x-text="error"></div>
 
   <div x-show="!loading && programs.length > 0" class="bg-white shadow rounded-lg">
-    <ul class="divide-y divide-gray-200">
+      <ul class="space-y-4">
       <template x-for="program in programs" :key="program.id">
-        <li @click="goTo('grantProgramDetail', { id: program.id })" class="p-4 hover:bg-gray-50 cursor-pointer">
-          <h3 class="font-semibold text-lg" x-text="program.title"></h3>
-          <p class="text-sm text-gray-600" x-text="program.description"></p>
+        <li @click="goTo('grantProgramDetail', { id: program.id })" 
+            class="bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer border-l-4 border-blue-500">
+          <div class="flex justify-between items-center">
+            <div>
+              <h3 class="font-semibold text-lg text-blue-800" x-text="program.title"></h3>
+              <p class="text-sm text-gray-600 mt-1" x-text="program.description"></p>
+            </div>
+            <i class="fas fa-chevron-right text-gray-400"></i>
+          </div>
         </li>
       </template>
     </ul>
@@ -22,42 +28,5 @@
 
   <div x-show="!loading && programs.length === 0" class="text-gray-500">
     No programs have been created yet.
-  </div>
-</div>
-
-<div x-data="grantsGovSearch()" class="mt-8 pt-6 border-t space-y-4">
-  <h2 class="text-xl font-bold">Search & Import from Grants.gov</h2>
-
-  <form @submit.prevent="search">
-    <div class="flex space-x-2">
-      <input type="text" x-model="keyword" placeholder="Enter keyword (e.g., 'education')" class="w-full border rounded px-3 py-2">
-      <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700" :disabled="loading">
-        <span x-show="!loading">Search</span>
-        <span x-show="loading"><i class="fas fa-spinner fa-spin"></i> Searching...</span>
-      </button>
-    </div>
-  </form>
-
-  <div x-show="error" class="text-red-500" x-text="error"></div>
-  <div x-show="!loading && results.length > 0" class="bg-white shadow rounded-lg">
-    <ul class="divide-y divide-gray-200">
-      <template x-for="opp in results" :key="opp.id">
-        <li class="p-4 flex justify-between items-center">
-          <div>
-            <h3 class="font-semibold text-lg" x-text="opp.title"></h3>
-            <p class="text-sm text-gray-600" x-text="opp.agency"></p>
-            <p class="text-xs text-gray-500 mt-1">ID: <span x-text="opp.id"></span></p>
-          </div>
-          <button 
-            @click="importGrant(opp.id)"
-            :disabled="isImporting(opp.id)"
-            class="bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700 disabled:bg-gray-400 text-sm"
-          >
-            <span x-show="!isImporting(opp.id)">Import</span>
-            <span x-show="isImporting(opp.id)"><i class="fas fa-spinner fa-spin"></i> Importing...</span>
-          </button>
-        </li>
-      </template>
-    </ul>
   </div>
 </div>

@@ -284,87 +284,31 @@ function updateRecord(collectionName, record) {
   return record;
 }
 
-// =================================================================
-// --- GRANTS.GOV INTEGRATION ---
-// =================================================================
-
 /**
- * Searches the public grants.gov API for funding opportunities.
- * @param {string} keyword The search term.
- * @returns {Array<Object>} A list of grant opportunities.
+ * Creates a new application record for a specific grant program.
+ * @param {Object} applicationData The application data from the form.
+ * @returns {Object} The saved application record.
  */
-function searchGrantsGov(keyword) {
-  // This endpoint does not require an API key
-  const endpoint = 'https://api.grants.gov/v1/api/search2';
-  
-  const payload = JSON.stringify({
-    "keyword": keyword
-  });
+function createApplication(applicationData) {
+  UserService.authorize(['seeker']); // Only seekers can apply
 
-  const options = {
-    'method': 'post',
-    'contentType': 'application/json',
-    'payload': payload
-  };
-  
-  try {
-    const response = UrlFetchApp.fetch(endpoint, options);
-    const data = JSON.parse(response.getContentText());
-    // The opportunities are in the 'opps' array of the response
-    return data.opps || [];
-  } catch (e) {
-    console.error("Error fetching from Grants.gov API: " + e);
-    return []; // Return an empty array on error
+  if (!applicationData || !applicationData.programId || !applicationData.title || !applicationData.essay) {
+    throw new Error("Missing required application data.");
   }
-}
-
-/**
- * Fetches the full details of a single opportunity from Grants.gov.
- * @param {string} opportunityId The ID of the grant to fetch.
- * @returns {Object} The detailed grant data.
- */
-function fetchGrantsGovOpportunity(opportunityId) {
-  // This endpoint also does not require an API key
-  const endpoint = 'https://api.grants.gov/v1/api/fetchOpportunity';
   
-  const payload = JSON.stringify({
-    "opportunityId": opportunityId
-  });
-
-  const options = {
-    'method': 'post',
-    'contentType': 'application/json',
-    'payload': payload
+  const user = UserService.getActiveUser();
+  
+  const docId = Utilities.getUuid();
+  const record = {
+    id: docId,
+    applicantId: user.getEmail(),
+    programId: applicationData.programId,
+    title: applicationData.title,
+    essay: applicationData.essay,
+    status: 'Submitted', // Default status
+    submittedAt: new Date().toISOString()
   };
-  
-  try {
-    const response = UrlFetchApp.fetch(endpoint, options);
-    return JSON.parse(response.getContentText());
-  } catch (e) {
-    console.error(`Error fetching opportunity ${opportunityId}:`, e);
-    throw new Error("Could not retrieve grant details from Grants.gov.");
-  }
-}
 
-/**
- * Imports a grant from Grants.gov and saves it to the local system.
- * @param {string} opportunityId The ID of the grant to import.
- * @returns {Object} The newly created record.
- */
-function importGrantFromGov(opportunityId) {
-  UserService.authorize(['admin']); // Ensure only admins can import
-
-  const grantDetails = fetchGrantsGovOpportunity(opportunityId);
-
-  // Reformat the data to match your application's data structure
-  const newRecord = {
-    title: grantDetails.synopsis.opportunityTitle,
-    description: grantDetails.synopsis.synopsisDesc,
-    // You can add more fields here as needed
-    source: 'Grants.gov',
-    sourceId: opportunityId
-  };
-  
-  // Use your existing createRecord function to save it
-  return createRecord(COLLECTIONS.GRANT_PROGRAMS, newRecord);
+  DriveService.writeFile(COLLECTIONS.APPLICATIONS, docId, record);
+  return record;
 }
