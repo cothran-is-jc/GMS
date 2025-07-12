@@ -52,7 +52,7 @@ const UserService = {
         uid: userEmail,
         email: userEmail,
         displayName: user.getUsername().split('@')[0],
-        role: 'seeker',
+        role: 'seeker', // Default role for new users
         createdAt: new Date().toISOString()
       };
       DriveService.writeFile(COLLECTIONS.USER_PROFILES, userEmail, profile);
@@ -68,6 +68,7 @@ const UserService = {
     if (!roles.includes(profile.role)) {
       throw new Error(`Authorization Error: Role '${roles.join(', ')}' is required.`);
     }
+    return profile;
   }
 };
 
@@ -117,8 +118,7 @@ const DriveService = {
       if (files.hasNext()) {
         const content = files.next().getBlob().getDataAsString();
         const doc = JSON.parse(content);
-        // This is the corrected line that adds the ID
-        doc.id = docId; 
+        doc.id = docId; // Ensure the ID is part of the document object
         return doc;
       }
       return null;
@@ -177,24 +177,15 @@ function getCurrentUser() {
 }
 
 function queryCollection(collectionName, filters = [], orderBy = []) {
-  UserService.authorize(['admin', 'seeker']);
+  UserService.authorize(['admin', 'seeker', 'manager']);
   let docs = DriveService.listCollection(collectionName);
-  // Filtering and sorting logic can be added here
   return docs;
 }
 
-/**
- * Retrieves a single record by its ID from a collection.
- * @param {string} collectionName The name of the collection (e.g., 'grantPrograms').
- * @param {string} docId The unique identifier for the record.
- * @returns {Object} The found record or null.
- */
 function getRecordById(collectionName, docId) {
-  UserService.authorize(['admin', 'seeker']); // Authorize user access
+  UserService.authorize(['admin', 'seeker', 'manager']); 
   const doc = DriveService.readFile(collectionName, docId);
   if (!doc) {
-    // Optionally, throw an error if the document is not found to provide clearer
-    // feedback to the client-side error handler.
     throw new Error(`Document with ID '${docId}' not found in collection '${collectionName}'.`);
   }
   return doc;
@@ -205,17 +196,12 @@ function getAllUserProfiles() {
   return DriveService.listCollection(COLLECTIONS.USER_PROFILES);
 }
 
-/**
- * Updates a user's role. ADMIN ONLY.
- * @param {string} userEmail The email of the user to update.
- * @param {string} newRole The new role to assign ('admin' or 'seeker').
- * @returns {boolean} True if the update was successful.
- */
 function updateUserRole(userEmail, newRole) {
-  UserService.authorize('admin'); // Only admins can change roles
+  UserService.authorize('admin');
 
-  if (newRole !== 'admin' && newRole !== 'seeker') {
-    throw new Error("Invalid role specified. Must be 'admin' or 'seeker'.");
+  const validRoles = ['admin', 'seeker', 'manager'];
+  if (!validRoles.includes(newRole)) {
+    throw new Error(`Invalid role specified. Must be one of: ${validRoles.join(', ')}.`);
   }
 
   const profile = DriveService.readFile(COLLECTIONS.USER_PROFILES, userEmail);
@@ -223,30 +209,22 @@ function updateUserRole(userEmail, newRole) {
     throw new Error(`User profile for ${userEmail} not found.`);
   }
 
-  // Prevent admin from accidentally removing their own admin status
-  const currentUser = Session.getActiveUser().getEmail();
-  if (currentUser === userEmail && newRole !== 'admin') {
+  const currentUserEmail = Session.getActiveUser().getEmail();
+  if (currentUserEmail === userEmail && profile.role === 'admin' && newRole !== 'admin') {
       throw new Error("Admins cannot remove their own admin role.");
   }
 
   profile.role = newRole;
   profile.updatedAt = new Date().toISOString();
-  profile.updatedBy = currentUser;
+  profile.updatedBy = currentUserEmail;
 
   DriveService.writeFile(COLLECTIONS.USER_PROFILES, userEmail, profile);
   return true;
 }
 
-/**
- * Creates a new document in a collection with a unique ID.
- * @param {string} collectionName The name of the collection (e.g., 'grantPrograms').
- * @param {Object} record The data to save.
- * @returns {Object} The saved record, including its new ID.
- */
 function createRecord(collectionName, record) {
-  UserService.authorize(['admin']); // Only admins can create programs
+  UserService.authorize(['admin', 'manager']);
   
-  // Generate a unique ID for the new record
   const docId = Utilities.getUuid();
   record.id = docId;
   record.createdAt = new Date().toISOString();
@@ -256,27 +234,21 @@ function createRecord(collectionName, record) {
   return record;
 }
 
-/**
- * Updates an existing document in a collection.
- * @param {string} collectionName The name of the collection (e.g., 'grantPrograms').
- * @param {Object} record The record data to update, must include an 'id'.
- * @returns {Object} The updated record.
- */
 function updateRecord(collectionName, record) {
-  UserService.authorize(['admin']); // Only admins can update programs
+  UserService.authorize(['admin', 'manager']);
 
   if (!record || !record.id) {
     throw new Error("Cannot update: record data and ID are required.");
   }
   
-  // The readFile function will throw an error if the doc doesn't exist
   const existingDoc = DriveService.readFile(collectionName, record.id);
+  if (!existingDoc) {
+      throw new Error(`Record with ID ${record.id} not found.`);
+  }
 
-  // Preserve original creation data
   record.createdAt = existingDoc.createdAt;
   record.createdBy = existingDoc.createdBy;
   
-  // Add update metadata
   record.updatedAt = new Date().toISOString();
   record.updatedBy = Session.getActiveUser().getEmail();
 
@@ -284,13 +256,8 @@ function updateRecord(collectionName, record) {
   return record;
 }
 
-/**
- * Creates a new application record for a specific grant program.
- * @param {Object} applicationData The application data from the form.
- * @returns {Object} The saved application record.
- */
 function createApplication(applicationData) {
-  UserService.authorize(['seeker']); // Only seekers can apply
+  UserService.authorize('seeker');
 
   if (!applicationData || !applicationData.programId || !applicationData.title || !applicationData.essay) {
     throw new Error("Missing required application data.");
@@ -305,10 +272,104 @@ function createApplication(applicationData) {
     programId: applicationData.programId,
     title: applicationData.title,
     essay: applicationData.essay,
-    status: 'Submitted', // Default status
+    status: 'Submitted',
+    fundingStatus: 'Pending',
     submittedAt: new Date().toISOString()
   };
 
   DriveService.writeFile(COLLECTIONS.APPLICATIONS, docId, record);
   return record;
+}
+
+/**
+ * Fetches all applications submitted by the current user.
+ * Enriches each application with the title of the grant program it belongs to.
+ * @returns {Array<Object>} A list of the user's applications.
+ */
+function getMyApplications() {
+  // This function is intended ONLY for seekers to view their own applications.
+  const userProfile = UserService.authorize('seeker');
+
+  const allApplications = DriveService.listCollection(COLLECTIONS.APPLICATIONS);
+  
+  const myApplications = allApplications.filter(app => app.applicantId === userProfile.email);
+
+  const enrichedApplications = myApplications.map(app => {
+    // FIX: Ensure default statuses exist for older application records.
+    if (!app.status) {
+      app.status = 'Submitted';
+    }
+    if (!app.fundingStatus) {
+      app.fundingStatus = 'Pending';
+    }
+
+    if (app.programId) {
+      const program = DriveService.readFile(COLLECTIONS.GRANT_PROGRAMS, app.programId);
+      app.programTitle = program ? program.title : 'Unknown Program';
+    } else {
+      app.programTitle = 'Program ID Missing';
+    }
+    return app;
+  });
+
+  return enrichedApplications;
+}
+
+function getApplicationsForReview() {
+  UserService.authorize(['admin', 'manager']);
+  
+  const applications = DriveService.listCollection(COLLECTIONS.APPLICATIONS);
+  
+  const userProfiles = {};
+  const grantPrograms = {};
+
+  const enrichedApps = applications.map(app => {
+    if (!app.status) {
+      app.status = 'Submitted';
+    }
+    if (!app.fundingStatus) {
+      app.fundingStatus = 'Pending';
+    }
+
+    if (!userProfiles[app.applicantId]) {
+      userProfiles[app.applicantId] = DriveService.readFile(COLLECTIONS.USER_PROFILES, app.applicantId);
+    }
+    const profile = userProfiles[app.applicantId];
+    app.applicantDisplayName = profile ? profile.displayName : app.applicantId;
+
+    if (!grantPrograms[app.programId]) {
+      grantPrograms[app.programId] = DriveService.readFile(COLLECTIONS.GRANT_PROGRAMS, app.programId);
+    }
+    const program = grantPrograms[app.programId];
+    app.programTitle = program ? program.title : 'Unknown Program';
+    
+    return app;
+  });
+
+  return enrichedApps;
+}
+
+function updateApplicationStatus(applicationId, status, fundingStatus) {
+  const reviewer = UserService.authorize(['admin', 'manager']);
+
+  const validStatuses = ['Submitted', 'Granted', 'Denied'];
+  const validFundingStatuses = ['Pending', 'Funded'];
+
+  if (!validStatuses.includes(status) || !validFundingStatuses.includes(fundingStatus)) {
+    throw new Error("Invalid status or funding status value provided.");
+  }
+  
+  const application = DriveService.readFile(COLLECTIONS.APPLICATIONS, applicationId);
+  if (!application) {
+    throw new Error("Application not found.");
+  }
+  
+  application.status = status;
+  application.fundingStatus = fundingStatus;
+  application.reviewedBy = reviewer.email;
+  application.reviewedAt = new Date().toISOString();
+
+  DriveService.writeFile(COLLECTIONS.APPLICATIONS, applicationId, application);
+
+  return application;
 }

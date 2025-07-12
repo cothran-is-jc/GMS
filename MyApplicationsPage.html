@@ -1,0 +1,60 @@
+<div x-data="myApplications()" x-init="init()" class="space-y-4">
+  <div class="flex justify-between items-center">
+    <h2 class="text-xl font-bold">My Submitted Applications</h2>
+    <button @click="goTo('dashboard')" class="text-sm text-blue-600 hover:underline">
+      &larr; Back to Dashboard
+    </button>
+  </div>
+
+  <div x-show="loading" class="text-gray-500">Loading your applications...</div>
+  <div x-show="error" class="text-red-500" x-text="error"></div>
+
+  <div x-show="!loading && applications.length === 0" class="text-center py-8 text-gray-500">
+    <p>You have not submitted any applications yet.</p>
+  </div>
+
+  <div x-show="!loading && applications.length > 0" class="bg-white shadow rounded-lg">
+    <ul class="divide-y divide-gray-200">
+      <template x-for="app in applications" :key="app.id">
+        <li class="p-4 space-y-2">
+          
+          <div class="flex justify-between items-start">
+              <div>
+                  <h3 class="font-semibold text-lg" x-text="app.title"></h3>
+                  <p class="text-sm text-gray-600">
+                    For Program: <span class="font-medium text-blue-700" x-text="app.programTitle"></span>
+                  </p>
+              </div>
+              <p class="text-xs text-gray-500 flex-shrink-0 ml-4">
+                Submitted: <span x-text="new Date(app.submittedAt).toLocaleDateString()"></span>
+              </p>
+          </div>
+
+          <div class="border-t pt-2 flex items-center space-x-6">
+              <div>
+                  <p class="text-xs text-gray-500">Application Status</p>
+                  <span class="text-sm font-semibold px-2 py-0.5 rounded-full"
+                      :class="{
+                          'bg-blue-200 text-blue-800': app.status === 'Submitted',
+                          'bg-green-200 text-green-800': app.status === 'Granted',
+                          'bg-red-200 text-red-800': app.status === 'Denied'
+                      }"
+                      x-text="app.status">
+                  </span>
+              </div>
+               <div>
+                  <p class="text-xs text-gray-500">Funding Status</p>
+                  <span class="text-sm font-semibold"
+                      :class="{
+                          'text-gray-700': app.fundingStatus === 'Pending',
+                          'text-green-700': app.fundingStatus === 'Funded'
+                      }"
+                      x-text="app.fundingStatus">
+                  </span>
+              </div>
+          </div>
+        </li>
+      </template>
+    </ul>
+  </div>
+</div>

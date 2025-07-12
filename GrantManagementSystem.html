@@ -33,129 +33,120 @@
           <p class="text-gray-700 mb-4">Welcome, <span class="font-semibold" x-text="$store.auth.userData.displayName"></span>!</p>
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
   
-  <template x-if="$store.auth.userData.role === 'admin'">
-    <div @click="goTo('adminPanel')" class="bg-white p-6 rounded-lg shadow-md hover:shadow-xl transition-shadow cursor-pointer flex items-center space-x-4">
-      <div class="bg-red-500 p-3 rounded-full">
-        <i class="fas fa-users-cog text-white text-xl"></i>
-      </div>
-      <div>
-        <h3 class="font-semibold text-lg">Manage Users</h3>
-        <p class="text-gray-500 text-sm">Update user roles and permissions</p>
-      </div>
-    </div>
-  </template>
+            <template x-if="$store.auth.userData.role === 'admin'">
+              <div @click="goTo('adminPanel')" class="bg-white p-6 rounded-lg shadow-md hover:shadow-xl transition-shadow cursor-pointer flex items-center space-x-4">
+                <div class="bg-red-500 p-3 rounded-full">
+                  <i class="fas fa-users-cog text-white text-xl"></i>
+                </div>
+                <div>
+                  <h3 class="font-semibold text-lg">Manage Users</h3>
+                  <p class="text-gray-500 text-sm">Update user roles and permissions</p>
+                </div>
+              </div>
+            </template>
+            
+            <div @click="goTo('grantPrograms')" class="bg-white p-6 rounded-lg shadow-md hover:shadow-xl transition-shadow cursor-pointer flex items-center space-x-4">
+              <div class="bg-blue-500 p-3 rounded-full">
+                <i class="fas fa-list-ul text-white text-xl"></i>
+              </div>
+              <div>
+                <h3 class="font-semibold text-lg">Grant Programs</h3>
+                <p class="text-gray-500 text-sm">View and manage all programs</p>
+              </div>
+            </div>
+            
+            <template x-if="['admin', 'manager'].includes($store.auth.userData.role)">
+              <div @click="goTo('reviewApplications')" class="bg-white p-6 rounded-lg shadow-md hover:shadow-xl transition-shadow cursor-pointer flex items-center space-x-4">
+                <div class="bg-yellow-500 p-3 rounded-full">
+                  <i class="fas fa-clipboard-check text-white text-xl"></i>
+                </div>
+                <div>
+                  <h3 class="font-semibold text-lg">Review Applications</h3>
+                  <p class="text-gray-500 text-sm">Review submitted grant applications</p>
+                </div>
+              </div>
+            </template>
 
-    <div @click="goTo('grantPrograms')" class="bg-white p-6 rounded-lg shadow-md hover:shadow-xl transition-shadow cursor-pointer flex items-center space-x-4">
-      <div class="bg-blue-500 p-3 rounded-full">
-        <i class="fas fa-list-ul text-white text-xl"></i>
-      </div>
-      <div>
-        <h3 class="font-semibold text-lg">Grant Programs</h3>
-        <p class="text-gray-500 text-sm">View and manage all programs</p>
-      </div>
-    </div>
+            <template x-if="$store.auth.userData.role === 'seeker'">
+                <div @click="goTo('myApplications')" class="bg-white p-6 rounded-lg shadow-md hover:shadow-xl transition-shadow cursor-pointer flex items-center space-x-4">
+                <div class="bg-green-500 p-3 rounded-full">
+                    <i class="fas fa-file-signature text-white text-xl"></i>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-lg">My Applications</h3>
+                    <p class="text-gray-500 text-sm">View your submitted applications</p>
+                </div>
+                </div>
+            </template>
 
-    <div @click="goTo('myApplications')" class="bg-white p-6 rounded-lg shadow-md hover:shadow-xl transition-shadow cursor-pointer flex items-center space-x-4">
-      <div class="bg-green-500 p-3 rounded-full">
-        <i class="fas fa-file-signature text-white text-xl"></i>
-      </div>
-      <div>
-        <h3 class="font-semibold text-lg">My Applications</h3>
-        <p class="text-gray-500 text-sm">View your submitted applications</p>
-      </div>
-    </div>
-  </div>
+          </div>
         </div>
+
         <template x-if="currentPage === 'grantPrograms'"><?!= include('GrantProgramListPage'); ?></template>
         <template x-if="currentPage === 'grantProgramForm'"><?!= include('GrantProgramFormPage'); ?></template>
-        <template x-if="currentPage === 'adminPanel'"><?!= include('AdminPanelPage'); ?></template>
+        <template x-if="currentPage === 'adminPanel' && $store.auth.userData.role === 'admin'"><?!= include('AdminPanelPage'); ?></template>
         <template x-if="currentPage === 'grantProgramDetail'"><?!= include('GrantProgramDetailPage'); ?></template>
         <template x-if="currentPage === 'applicationForm'"><?!= include('ApplicationFormPage'); ?></template>
+        <template x-if="currentPage === 'reviewApplications' && ['admin', 'manager'].includes($store.auth.userData.role)"><?!= include('ReviewApplicationsPage'); ?></template>
+        <template x-if="currentPage === 'myApplications' && $store.auth.userData.role === 'seeker'"><?!= include('MyApplicationsPage'); ?></template>
+
       </div>
     </template>
   </main>
 </div>
 
-
 <script>
   let goTo;
   document.addEventListener('alpine:init', () => {
-    const handleGoogleScriptRun = (component, serverFunction, ...args) => {
-      return new Promise((resolve, reject) => {
-        // Only set global loading state if a component context is passed
-        if (component) { 
-          component.loading = true;
-          component.error = null;
-        }
-        google.script.run
-          .withSuccessHandler((result) => {
-            if (component) component.loading = false;
-            resolve(result);
-          })
-          .withFailureHandler((err) => {
-            if (component) { 
-              component.loading = false;
-              component.error = err.message || 'An unexpected error occurred.'; 
-            }
-            console.error(`Error in ${serverFunction}:`, err);
-            reject(err);
-          })
-          [serverFunction](...args);
-      });
-    };
+    
+    // The generic handler has been removed to ensure reliable communication with the server.
 
     Alpine.store('auth', { currentUser: null, userData: null, loading: true, isAuthReady: false });
 
     Alpine.data('grantProgramList', () => ({
       programs: [], loading: true, error: null,
       init() { this.loadPrograms(); },
-      async loadPrograms() { try { this.programs = await handleGoogleScriptRun(this, 'queryCollection', 'grantPrograms'); } catch (e) {} }
+      async loadPrograms() {
+        this.loading = true;
+        this.error = null;
+        google.script.run
+            .withSuccessHandler(result => {
+                this.programs = result;
+                this.loading = false;
+            })
+            .withFailureHandler(err => {
+                this.error = err.message;
+                this.loading = false;
+            })
+            .queryCollection('grantPrograms');
+      }
     }));
     
     Alpine.data('grantProgramDetail', (pageParams) => ({
-      program: null, 
-      loading: true, 
-      error: null,
+      program: null, loading: true, error: null,
       init() {
-        // 1. Check if pageParams and the required id exist
-        if (pageParams && pageParams.id) {
-          this.loadProgram(pageParams.id);
-        } else {
-          // 2. If not, set a clear error message and stop the loading process
-          this.error = "Error: Program ID is missing and details cannot be loaded.";
-          this.loading = false;
-          console.error("grantProgramDetail was initialized without a program ID.", pageParams);
-        }
+        if (pageParams && pageParams.id) { this.loadProgram(pageParams.id); } 
+        else { this.error = "Error: Program ID is missing."; this.loading = false; }
       },
-      // 3. Pass the ID as a direct argument to the load function
       async loadProgram(id) { 
         this.loading = true;
-        try { 
-          this.program = await handleGoogleScriptRun(this, 'getRecordById', 'grantPrograms', id); 
-        } catch(e) {
-          this.error = e.message;
-        } finally {
-          this.loading = false;
-        }
+        this.error = null;
+        google.script.run
+            .withSuccessHandler(result => {
+                this.program = result;
+                this.loading = false;
+            })
+            .withFailureHandler(err => {
+                this.error = err.message;
+                this.loading = false;
+            })
+            .getRecordById('grantPrograms', id);
       }
     }));
     
     Alpine.data('grantProgramForm', (pageParams) => ({
-      form: { 
-        title: '', 
-        description: '',
-        opportunityId: '',
-        agency: '',
-        status: 'Posted',
-        fundingAmount: '',
-        postDate: '',
-        closeDate: ''
-      },
-      isEdit: false, 
-      loading: false, 
-      error: null,
-
-      // --- THIS IS THE MISSING LOGIC ---
+      form: { title: '', description: '', opportunityId: '', agency: '', status: 'Posted', fundingAmount: '', postDate: '', closeDate: '' },
+      isEdit: false, loading: false, error: null,
       init() {
         if (pageParams && pageParams.id) {
           this.isEdit = true;
@@ -164,58 +155,161 @@
       },
       async loadProgram(id) { 
         this.loading = true; 
-        try { 
-          this.form = await handleGoogleScriptRun(this, 'getRecordById', 'grantPrograms', id); 
-        } catch(e) { 
-          this.error = e.message; 
-        } finally { 
-          this.loading = false; 
-        } 
+        this.error = null;
+        google.script.run
+            .withSuccessHandler(result => {
+                this.form = result;
+                this.loading = false;
+            })
+            .withFailureHandler(err => {
+                this.error = err.message;
+                this.loading = false;
+            })
+            .getRecordById('grantPrograms', id);
       },
       async save() { 
-        try { 
-          await handleGoogleScriptRun(this, this.isEdit ? 'updateRecord' : 'createRecord', 'grantPrograms', this.form); 
-          goTo('grantPrograms'); 
-        } catch (e) { 
-          this.error = e.message; 
-        } 
+        this.loading = true;
+        this.error = null;
+        const serverFunction = this.isEdit ? 'updateRecord' : 'createRecord';
+        google.script.run
+            .withSuccessHandler(() => {
+                this.loading = false;
+                goTo('grantPrograms'); 
+            })
+            .withFailureHandler(err => {
+                this.error = err.message;
+                this.loading = false;
+            })
+            [serverFunction]('grantPrograms', this.form);
       }
     }));
 
-// --- ADD THIS ENTIRE COMPONENT BACK ---
     Alpine.data('adminPanel', () => ({
       users: [],
       loading: true,
       error: null,
+      activeTab: 'users', // Add this line
       init() {
         this.loadUsers();
       },
       async loadUsers() {
-        try {
-          const userList = await handleGoogleScriptRun(this, 'getAllUserProfiles');
-          // Add a client-side property to track the saving state for each user
-          this.users = userList.map(u => ({ ...u, isSaving: false }));
-        } catch (e) { /* Error is handled by the wrapper */ }
+        this.loading = true;
+        this.error = null;
+        google.script.run
+            .withSuccessHandler(userList => {
+                this.users = userList.map(u => ({ ...u, isSaving: false }));
+                this.loading = false;
+            })
+            .withFailureHandler(err => {
+                this.error = err.message;
+                this.loading = false;
+            })
+            .getAllUserProfiles();
       },
       async updateRole(user) {
-        // Set saving state for this specific user to show spinner
         user.isSaving = true;
-        this.error = null; // Clear previous global errors
-
-        try {
-          // We pass 'null' for the component so the global spinner doesn't show
-          await handleGoogleScriptRun(null, 'updateUserRole', user.email, user.role);
-        } catch (e) {
-          // If the server threw an error, display it in the main error area
-          this.error = e.message;
-          // Because the update failed on the server, we reload the users to
-          // revert the dropdown to its original, correct state.
-          this.loadUsers(); 
-        } finally {
-          // Always turn off the saving state for this user
-          user.isSaving = false;
-        }
+        this.error = null;
+        google.script.run
+            .withSuccessHandler(() => {
+                user.isSaving = false;
+            })
+            .withFailureHandler(err => {
+                this.error = err.message;
+                user.isSaving = false;
+                this.loadUsers(); // Revert on failure
+            })
+            .updateUserRole(user.email, user.role);
       }
+    }));
+    
+    Alpine.data('applicationForm', (pageParams) => ({
+      pageParams: pageParams, programTitle: '', form: { programId: null, title: '', essay: '' },
+      loading: true, submitting: false, error: null,
+      init() {
+        if (!pageParams.programId) { this.error = "No program ID specified."; this.loading = false; return; }
+        this.form.programId = pageParams.programId;
+        this.loadProgramTitle();
+      },
+      async loadProgramTitle() {
+        this.loading = true;
+        this.error = null;
+        google.script.run
+            .withSuccessHandler(program => {
+                this.programTitle = program.title;
+                this.loading = false;
+            })
+            .withFailureHandler(err => {
+                this.error = err.message;
+                this.loading = false;
+            })
+            .getRecordById('grantPrograms', this.pageParams.programId);
+      },
+      async submitApplication() {
+        this.submitting = true;
+        this.error = null;
+        google.script.run
+            .withSuccessHandler(() => {
+                this.submitting = false;
+                goTo('grantProgramDetail', { id: this.pageParams.programId });
+            })
+            .withFailureHandler(err => {
+                this.error = err.message;
+                this.submitting = false;
+            })
+            .createApplication(this.form);
+      }
+    }));
+
+    Alpine.data('reviewApplications', () => ({
+        applications: [], loading: true, error: null,
+        init() { this.loadApplications(); },
+        async loadApplications() {
+            this.loading = true;
+            this.error = null;
+            google.script.run
+                .withSuccessHandler(appList => {
+                    this.applications = appList.map(app => ({...app, isSaving: false }));
+                    this.loading = false;
+                })
+                .withFailureHandler(err => {
+                    this.error = err.message;
+                    this.loading = false;
+                })
+                .getApplicationsForReview();
+        },
+        async updateStatus(app) {
+            app.isSaving = true;
+            this.error = null;
+            google.script.run
+                .withSuccessHandler(() => {
+                    app.isSaving = false;
+                })
+                .withFailureHandler(err => {
+                    this.error = `Failed to update ${app.title}: ${err.message}`;
+                    app.isSaving = false;
+                    this.loadApplications(); // Revert on failure
+                })
+                .updateApplicationStatus(app.id, app.status, app.fundingStatus);
+        }
+    }));
+
+    Alpine.data('myApplications', () => ({
+        applications: [], loading: true, error: null,
+        init() { this.loadApplications(); },
+        async loadApplications() {
+            this.loading = true;
+            this.error = null;
+            google.script.run
+                .withSuccessHandler(result => {
+                    this.applications = result;
+                    this.loading = false;
+                })
+                .withFailureHandler(err => {
+                    this.error = err.message;
+                    this.loading = false;
+                })
+                .getMyApplications();
+        }
     }));
 
     Alpine.data('grantApp', () => ({
@@ -227,66 +321,23 @@
       async fetchCurrentUser() {
         const authStore = Alpine.store('auth');
         authStore.loading = true;
-        try {
-            const result = await handleGoogleScriptRun(null, 'getCurrentUser');
-            authStore.currentUser = result.currentUser;
-            authStore.userData = result.userData;
-        } catch (e) {
-            authStore.currentUser = null;
-            authStore.userData = null;
-        } finally {
-            authStore.isAuthReady = true;
-            authStore.loading = false;
-        }
+        google.script.run
+            .withSuccessHandler(result => {
+                authStore.currentUser = result.currentUser;
+                authStore.userData = result.userData;
+                authStore.isAuthReady = true;
+                authStore.loading = false;
+            })
+            .withFailureHandler(() => {
+                authStore.currentUser = null;
+                authStore.userData = null;
+                authStore.isAuthReady = true;
+                authStore.loading = false;
+            })
+            .getCurrentUser();
       },
       navigateTo(page, params = {}) { this.currentPage = page; this.pageParams = params; },
       signOut() { alert('Sign-out not implemented.'); }
-    }));
-    // Add this new component to your script tag
-    Alpine.data('applicationForm', (pageParams) => ({
-      pageParams: pageParams,
-      programTitle: '',
-      form: {
-        programId: null,
-        title: '',
-        essay: ''
-      },
-      loading: true,
-      submitting: false,
-      error: null,
-      init() {
-        if (!pageParams.programId) {
-          this.error = "No program ID was specified.";
-          this.loading = false;
-          return;
-        }
-        this.form.programId = pageParams.programId;
-        this.loadProgramTitle();
-      },
-      async loadProgramTitle() {
-        this.loading = true;
-        try {
-          const program = await handleGoogleScriptRun(null, 'getRecordById', 'grantPrograms', this.pageParams.programId);
-          this.programTitle = program.title;
-        } catch (e) {
-          this.error = e.message;
-        } finally {
-          this.loading = false;
-        }
-      },
-      async submitApplication() {
-        this.submitting = true;
-        this.error = null;
-        try {
-          await handleGoogleScriptRun(null, 'createApplication', this.form);
-          // After successful submission, go back to the program detail page
-          goTo('grantProgramDetail', { id: this.pageParams.programId });
-        } catch (e) {
-          this.error = e.message;
-        } finally {
-          this.submitting = false;
-        }
-      }
     }));
   });
 </script>

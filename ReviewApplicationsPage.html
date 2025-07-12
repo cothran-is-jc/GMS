@@ -1,0 +1,67 @@
+<div x-data="reviewApplications()" x-init="init()" class="space-y-4">
+  <div class="flex justify-between items-center">
+    <h2 class="text-xl font-bold">Review Applications</h2>
+    <button @click="goTo('dashboard')" class="text-sm text-blue-600 hover:underline">
+      &larr; Back to Dashboard
+    </button>
+  </div>
+
+  <div x-show="loading" class="text-gray-500">Loading applications for review...</div>
+  <div x-show="error" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" x-text="error"></div>
+
+  <div x-show="!loading && applications.length === 0" class="text-gray-500">
+    There are no applications to review at this time.
+  </div>
+
+  <div x-show="!loading && applications.length > 0" class="bg-white shadow rounded-lg overflow-hidden">
+    <ul class="divide-y divide-gray-200">
+      <template x-for="app in applications" :key="app.id">
+        <li class="p-4 space-y-3">
+          <div class="flex flex-col sm:flex-row justify-between sm:items-center">
+            <div>
+              <h3 class="font-semibold text-lg" x-text="app.title"></h3>
+              <p class="text-sm text-gray-600">
+                Applicant: <span class="font-medium" x-text="app.applicantDisplayName || app.applicantId"></span>
+              </p>
+              <p class="text-sm text-gray-600">
+                For Program: <span class="font-medium text-blue-700" x-text="app.programTitle"></span>
+              </p>
+            </div>
+            <div class="text-xs text-gray-500 mt-2 sm:mt-0">
+              Submitted: <span x-text="new Date(app.submittedAt).toLocaleDateString()"></span>
+            </div>
+          </div>
+
+          <div class="border-t pt-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div class="flex-1">
+                 <h4 class="text-sm font-semibold mb-1">Application Essay</h4>
+                 <p class="text-sm text-gray-700 bg-gray-50 p-2 border rounded max-h-24 overflow-y-auto" x-text="app.essay"></p>
+              </div>
+              <div class="flex items-center space-x-3">
+                 <div>
+                    <label class="block text-xs font-medium text-gray-700">App Status</label>
+                    <select x-model="app.status" class="border-gray-300 rounded-md shadow-sm text-sm">
+                      <option value="Submitted">Submitted</option>
+                      <option value="Granted">Granted</option>
+                      <option value="Denied">Denied</option>
+                    </select>
+                 </div>
+                 <div>
+                    <label class="block text-xs font-medium text-gray-700">Funding</label>
+                    <select x-model="app.fundingStatus" class="border-gray-300 rounded-md shadow-sm text-sm">
+                        <option value="Pending">Pending</option>
+                        <option value="Funded">Funded</option>
+                    </select>
+                 </div>
+                 <button @click="updateStatus(app)" :disabled="app.isSaving" class="self-end bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700 disabled:bg-gray-400">
+                   <span x-show="!app.isSaving">Save</span>
+                   <span x-show="app.isSaving"><i class="fas fa-spinner fa-spin"></i></span>
+                 </button>
+              </div>
+          </div>
+
+        </li>
+      </template>
+    </ul>
+  </div>
+</div>

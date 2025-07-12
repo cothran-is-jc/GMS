@@ -1,32 +1,50 @@
 <div x-data="grantProgramList()" x-init="init()" class="space-y-4">
   <div class="flex justify-between items-center">
     <h2 class="text-xl font-bold">Grant Programs</h2>
-    <button @click="goTo('grantProgramForm')" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-      New Program
-    </button>
+    <template x-if="$store.auth.userData.role === 'admin' || $store.auth.userData.role === 'manager'">
+      <button @click="goTo('grantProgramForm')" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+        New Program
+      </button>
+    </template>
   </div>
 
   <div x-show="loading" class="text-gray-500">Loading programs...</div>
   <div x-show="error" class="text-red-500" x-text="error"></div>
 
   <div x-show="!loading && programs.length > 0" class="bg-white shadow rounded-lg">
-      <ul class="space-y-4">
+    <ul class="divide-y divide-gray-200">
       <template x-for="program in programs" :key="program.id">
         <li @click="goTo('grantProgramDetail', { id: program.id })" 
-            class="bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer border-l-4 border-blue-500">
+            class="p-4 hover:bg-gray-50 transition-colors cursor-pointer">
           <div class="flex justify-between items-center">
-            <div>
+            <div class="flex-grow">
               <h3 class="font-semibold text-lg text-blue-800" x-text="program.title"></h3>
               <p class="text-sm text-gray-600 mt-1" x-text="program.description"></p>
             </div>
-            <i class="fas fa-chevron-right text-gray-400"></i>
+            
+            <div class="flex-shrink-0 ml-6 flex items-center space-x-4">
+              <div class="text-right">
+                  <p class="text-sm text-gray-500">Estimated Funding</p>
+                  <p class="font-semibold text-green-700" x-text="program.fundingAmount ? `$${program.fundingAmount.toLocaleString()}` : 'Not Specified'"></p>
+              </div>
+
+              <span class="text-xs font-semibold uppercase px-3 py-1 rounded-full w-24 text-center"
+                  :class="{
+                      'bg-green-500 text-white': program.status === 'Posted',
+                      'bg-yellow-500 text-white': program.status === 'Forecasted',
+                      'bg-gray-500 text-white': program.status === 'Closed'
+                  }"
+                  x-text="program.status || 'Unknown'">
+              </span>
+              <i class="fas fa-chevron-right text-gray-400"></i>
+            </div>
           </div>
         </li>
       </template>
     </ul>
   </div>
 
-  <div x-show="!loading && programs.length === 0" class="text-gray-500">
-    No programs have been created yet.
+  <div x-show="!loading && programs.length === 0" class="text-center py-8 text-gray-500">
+    <p>No grant programs have been created yet.</p>
   </div>
 </div>

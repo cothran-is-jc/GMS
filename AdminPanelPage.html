@@ -1,48 +1,86 @@
 <div x-data="adminPanel()" x-init="init()" class="space-y-4">
-  <div class="flex justify-between items-center">
-    <h2 class="text-xl font-bold">Admin Panel: Manage Users</h2>
+  <div class="flex justify-between items-center mb-4">
+    <h2 class="text-xl font-bold">Admin Panel</h2>
     <button @click="goTo('dashboard')" class="text-sm text-blue-600 hover:underline">
       &larr; Back to Dashboard
     </button>
   </div>
 
-  <div x-show="loading" class="text-gray-500">Loading users...</div>
+  <div class="border-b border-gray-200">
+    <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+      <button @click="activeTab = 'users'" 
+              :class="activeTab === 'users' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+              class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+        Manage Users
+      </button>
+      <button @click="activeTab = 'permissions'" 
+              :class="activeTab === 'permissions' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+              class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+        Role Permissions
+      </button>
+    </nav>
+  </div>
 
-  <div x-show="error" class="text-red-600" x-text="error"></div>
+  <div class="pt-4">
+    <div x-show="activeTab === 'users'" class="space-y-4">
+      <div x-show="loading" class="text-gray-500">Loading users...</div>
+      <div x-show="error" class="text-red-600" x-text="error"></div>
+      <div x-show="!loading && users.length > 0" class="bg-white shadow rounded-lg">
+        <ul class="divide-y divide-gray-200">
+          <template x-for="user in users" :key="user.uid">
+            <li class="p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center">
+              <div class="mb-2 sm:mb-0">
+                <p class="font-semibold" x-text="user.displayName"></p>
+                <p class="text-sm text-gray-600" x-text="user.email"></p>
+              </div>
+              <div class="flex items-center space-x-2">
+                <select x-model="user.role" :disabled="user.isSaving" class="border-gray-300 rounded-md shadow-sm text-sm">
+                  <option value="seeker">seeker</option>
+                  <option value="manager">manager</option>
+                  <option value="admin">admin</option>
+                </select>
+                <button @click="updateRole(user)" :disabled="user.isSaving" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 disabled:bg-gray-400">
+                  <span x-show="!user.isSaving">Update</span>
+                  <span x-show="user.isSaving"><i class="fas fa-spinner fa-spin"></i> Saving...</span>
+                </button>
+              </div>
+            </li>
+          </template>
+        </ul>
+      </div>
+    </div>
 
-  <div x-show="!loading && users.length > 0" class="bg-white shadow rounded-lg">
-    <ul class="divide-y divide-gray-200">
-      <template x-for="user in users" :key="user.uid">
-        <li class="p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center">
-          
-          <div class="mb-2 sm:mb-0">
-            <p class="font-semibold" x-text="user.displayName"></p>
-            <p class="text-sm text-gray-600" x-text="user.email"></p>
-          </div>
+    <div x-show="activeTab === 'permissions'" class="space-y-6">
+      <div class="bg-white shadow rounded-lg p-6">
+        <h3 class="text-lg font-bold text-gray-900">Admin</h3>
+        <p class="text-sm text-gray-600 mb-4">Has full system access and can manage users.</p>
+        <ul class="list-disc list-inside space-y-1 text-sm">
+          <li><span class="font-semibold">Dashboard:</span> Can view all dashboard cards.</li>
+          <li><span class="font-semibold">Admin Panel:</span> Can manage user roles and view permissions.</li>
+          <li><span class="font-semibold">Grant Programs:</span> Can create, view, and edit all programs.</li>
+          <li><span class="font-semibold">Applications:</span> Can review and update the status of all applications.</li>
+        </ul>
+      </div>
 
-          <div class="flex items-center space-x-2">
-            <select
-              x-model="user.role"
-              :disabled="user.isSaving"
-              class="border-gray-300 rounded-md shadow-sm text-sm"
-            >
-              <option value="seeker">seeker</option>
-              <option value="admin">admin</option>
-            </select>
-            
-            <button
-              @click="updateRole(user)"
-              :disabled="user.isSaving"
-              class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 disabled:bg-gray-400"
-            >
-              <span x-show="!user.isSaving">Update</span>
-              <span x-show="user.isSaving">
-                  <i class="fas fa-spinner fa-spin"></i> Saving...
-              </span>
-            </button>
-          </div>
-        </li>
-      </template>
-    </ul>
+      <div class="bg-white shadow rounded-lg p-6">
+        <h3 class="text-lg font-bold text-gray-900">Manager</h3>
+        <p class="text-sm text-gray-600 mb-4">Can manage grant programs and review applications.</p>
+        <ul class="list-disc list-inside space-y-1 text-sm">
+          <li><span class="font-semibold">Admin Panel:</span> No access.</li>
+          <li><span class="font-semibold">Grant Programs:</span> Can create, view, and edit all programs.</li>
+          <li><span class="font-semibold">Applications:</span> Can review and update the status of all applications.</li>
+        </ul>
+      </div>
+      
+      <div class="bg-white shadow rounded-lg p-6">
+        <h3 class="text-lg font-bold text-gray-900">Seeker</h3>
+        <p class="text-sm text-gray-600 mb-4">Can search for grants and submit applications.</p>
+        <ul class="list-disc list-inside space-y-1 text-sm">
+          <li><span class="font-semibold">Admin Panel:</span> No access.</li>
+          <li><span class="font-semibold">Grant Programs:</span> Can view program listings and details. Cannot create or edit.</li>
+          <li><span class="font-semibold">Applications:</span> Can submit new applications and view the status of their own submissions only. Cannot review all applications.</li>
+        </ul>
+      </div>
+    </div>
   </div>
 </div>

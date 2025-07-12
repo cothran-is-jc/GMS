@@ -56,9 +56,14 @@
           &larr; Back to All Programs
         </button>
         <div>
-          <template x-if="$store.auth.userData.role === 'admin'">
+          <template x-if="$store.auth.userData.role === 'admin' || $store.auth.userData.role === 'manager'">
             <button @click="goTo('grantProgramForm', { id: program.id })" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 text-sm font-semibold">
               <i class="fas fa-edit mr-2"></i>Edit Program
+            </button>
+          </template>
+           <template x-if="$store.auth.userData.role === 'manager'">
+            <button @click="goTo('reviewApplications', { programId: program.id })" class="bg-yellow-500 text-white px-4 py-2 rounded-md hover:bg-yellow-600 text-sm font-semibold">
+              <i class="fas fa-clipboard-check mr-2"></i>Review Applications
             </button>
           </template>
           <template x-if="$store.auth.userData.role === 'seeker' && program.status === 'Posted'">
